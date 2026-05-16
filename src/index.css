@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0a0f1e] text-white antialiased;
+    font-family: "Inter", sans-serif;
+  }
+}
+
+@layer components {
+  /* Glassmorphism Effect untuk Card Dashboard */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+  }
+
+  /* Custom Scrollbar agar terlihat lebih clean */
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-blue-600/50 rounded-full hover:bg-blue-500;
+  }
+}
+
+/* Fix untuk Leaflet Map agar tidak pecah saat loading */
+.leaflet-container {
+  @apply w-full h-full z-0;
+  background: #0a0f1e !important;
+}
