@@ -1,0 +1,17 @@
+# Python cache & compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment (Isolasi Library)
+venv/
+.venv/
+env/
+
+# Konfigurasi IDE / Editor
+.vscode/
+.idea/
+
+# File Environment Variables 
+.env
