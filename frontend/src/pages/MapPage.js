@@ -153,7 +153,7 @@ const MapPage = () => {
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", overflow: "hidden" }}>
       {/* SIDEBAR */}
-      <div style={{ width: 370, minWidth: 370, height: "100vh", backgroundColor: "#0f172a", display: "flex", flexDirection: "column", zIndex: 1000, overflowY: "auto" }}>
+      <div style={{ width: "min(370px, 100vw)", minWidth: 280, height: "100vh", backgroundColor: "#0f172a", display: "flex", flexDirection: "column", zIndex: 1000, overflowY: "auto" }}>
         
         <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#64748b", textDecoration: "none", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
