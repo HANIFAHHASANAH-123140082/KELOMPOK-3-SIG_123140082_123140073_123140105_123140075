@@ -191,6 +191,24 @@ const MapPage = () => {
           </button>
         </div>
 
+        {/* STATISTIK PANEL */}
+        <div style={{ margin: "10px 16px", backgroundColor: "#1e293b", borderRadius: 12, padding: "12px 14px", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <p style={{ color: "#475569", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", margin: "0 0 10px" }}>STATISTIK WILAYAH</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {[
+              { label: "Total Lokasi", val: parkirData.length, color: "#3b82f6" },
+              { label: "Sedang Buka", val: parkirData.filter(p => getStatusLabel(p) === "Buka").length, color: "#22c55e" },
+              { label: "Total Slot Mobil", val: parkirData.reduce((a,b) => a + (b.kapasitas_mobil||0), 0), color: "#8b5cf6" },
+              { label: "Total Slot Motor", val: parkirData.reduce((a,b) => a + (b.kapasitas_motor||0), 0), color: "#f59e0b" },
+            ].map(s => (
+              <div key={s.label} style={{ backgroundColor: "#0f172a", borderRadius: 8, padding: "8px 10px", borderLeft: `3px solid ${s.color}` }}>
+                <div style={{ color: "#475569", fontSize: 8, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>{s.label}</div>
+                <div style={{ color: "white", fontSize: 16, fontWeight: 900 }}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
         <div style={{ padding: "0 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#3b82f6", boxShadow: "0 0 7px #3b82f6" }} />
