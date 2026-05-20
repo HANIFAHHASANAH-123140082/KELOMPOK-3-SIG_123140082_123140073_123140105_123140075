@@ -1,18 +1,28 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app import models
-from app.api import endpoints # Pastikan ini ada
+from app.api import endpoints
 
-# Sinkronisasi Database
-print("Sedang menyinkronkan database...")
 models.Base.metadata.create_all(bind=engine)
-print("Database berhasil disinkronkan!")
 
-app = FastAPI(title="WebGIS Parkir Ratu Agung")
+app = FastAPI(
+    title="WebGIS Parkir Publik - Kecamatan Ratu Agung",
+    description="REST API untuk sistem informasi parkir berbasis spasial",
+    version="1.0.0"
+)
 
-# Mendaftarkan Router
+# CORS agar frontend bisa akses backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(endpoints.router, prefix="/api")
 
 @app.get("/")
 def read_root():
-    return {"message": "Koneksi Berhasil!"}
+    return {"message": "WebGIS Parkir API berjalan!", "docs": "/docs"}

@@ -1,18 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
+import axios from "axios";
 import "leaflet/dist/leaflet.css";
-import { parkingLocations } from "../data/parkingData";
 import { Link } from "react-router-dom";
-import {
-  ArrowLeft,
-  Search,
-  Filter,
-  Star,
-  MapPin,
-  Clock,
-  Car,
-} from "lucide-react";
+import { ArrowLeft, Search, Filter, MapPin, Clock, Car, Navigation } from "lucide-react";
+
+const API = "http://localhost:8000/api";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -30,211 +24,178 @@ const createIcon = (color) =>
     popupAnchor: [0, -22],
   });
 
-const statusIcon = (s) =>
-  s === "Buka"
-    ? createIcon("#22c55e")
-    : s === "Penuh"
-      ? createIcon("#f97316")
-      : createIcon("#ef4444");
-
-const statusColor = (s) =>
-  s === "Buka" ? "#22c55e" : s === "Penuh" ? "#f97316" : "#ef4444";
-
 const FlyAndOpen = ({ target, markerRefs }) => {
   const map = useMap();
   useEffect(() => {
     if (!target) return;
-    map.flyTo([target.lat, target.lng], 17, { duration: 1.2 });
-    setTimeout(() => {
-      markerRefs.current[target.id]?.openPopup();
-    }, 1350);
+    map.flyTo([target.latitude, target.longitude], 17, { duration: 1.2 });
+    setTimeout(() => markerRefs.current[target.id]?.openPopup(), 1350);
   }, [target]);
   return null;
 };
 
+const formatJam = (jam) => {
+  if (!jam) return "-";
+  return jam.substring(0, 5);
+};
+
+const formatRupiah = (angka) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(angka);
+
 const MapPage = () => {
+  const [parkirData, setParkirData] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Semua");
   const [selected, setSelected] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState(null);
+  const [terdekatMode, setTerdekatMode] = useState(false);
   const markerRefs = useRef({});
 
-  const filtered = parkingLocations.filter((p) => {
-    const matchSearch =
-      p.nama.toLowerCase().includes(search.toLowerCase()) ||
-      p.alamat.toLowerCase().includes(search.toLowerCase());
-    const matchFilter =
-      filter === "Semua" ||
-      (filter === "Mobil" && p.tipe.includes("Mobil")) ||
-      (filter === "Motor" && p.tipe.includes("Motor"));
-    return matchSearch && matchFilter;
-  });
+  // Ambil data dari API
+  useEffect(() => {
+    axios.get(`${API}/parkir`)
+      .then((res) => {
+        setParkirData(res.data);
+        setFiltered(res.data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // Filter berdasarkan search dan jenis kendaraan
+  useEffect(() => {
+    let result = parkirData;
+    if (search) {
+      result = result.filter(
+        (p) =>
+          p.nama.toLowerCase().includes(search.toLowerCase()) ||
+          (p.alamat && p.alamat.toLowerCase().includes(search.toLowerCase()))
+      );
+    }
+    if (filter === "Mobil") result = result.filter((p) => p.kapasitas_mobil > 0);
+    if (filter === "Motor") result = result.filter((p) => p.kapasitas_motor > 0);
+    setFiltered(result);
+  }, [search, filter, parkirData]);
 
   const handleSelect = (item) => {
     setSelected(item);
     setFlyTarget({ ...item, _t: Date.now() });
   };
 
+  const handleCariTerdekat = () => {
+    if (!navigator.geolocation) {
+      alert("Browser tidak mendukung GPS");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setUserLocation({ latitude, longitude });
+        axios.get(`${API}/parkir/terdekat?lat=${latitude}&lng=${longitude}&limit=5`)
+          .then((res) => {
+            setFiltered(res.data);
+            setTerdekatMode(true);
+          });
+      },
+      () => {
+        // Kalau GPS tidak bisa, pakai koordinat tengah Ratu Agung
+        const lat = -3.7988;
+        const lng = 102.2614;
+        axios.get(`${API}/parkir/terdekat?lat=${lat}&lng=${lng}&limit=5`)
+          .then((res) => {
+            setFiltered(res.data);
+            setTerdekatMode(true);
+          });
+      }
+    );
+  };
+
+  const handleResetTerdekat = () => {
+    setFiltered(parkirData);
+    setTerdekatMode(false);
+    setUserLocation(null);
+  };
+
+  const getMarkerColor = (item) => {
+    const now = new Date();
+    const jamSekarang = now.getHours() * 60 + now.getMinutes();
+    if (!item.jam_buka || !item.jam_tutup) return "#3b82f6";
+    const [bH, bM] = item.jam_buka.split(":").map(Number);
+    const [tH, tM] = item.jam_tutup.split(":").map(Number);
+    const buka = bH * 60 + bM;
+    const tutup = tH * 60 + tM;
+    if (jamSekarang >= buka && jamSekarang <= tutup) return "#22c55e";
+    return "#ef4444";
+  };
+
+  const getStatusLabel = (item) => {
+    const now = new Date();
+    const jamSekarang = now.getHours() * 60 + now.getMinutes();
+    if (!item.jam_buka || !item.jam_tutup) return "Buka";
+    const [bH, bM] = item.jam_buka.split(":").map(Number);
+    const [tH, tM] = item.jam_tutup.split(":").map(Number);
+    const buka = bH * 60 + bM;
+    const tutup = tH * 60 + tM;
+    return jamSekarang >= buka && jamSekarang <= tutup ? "Buka" : "Tutup";
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a", color: "white", fontSize: 18 }}>
+        Memuat data parkir...
+      </div>
+    );
+  }
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
-        overflow: "hidden",
-      }}
-    >
+    <div style={{ display: "flex", height: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", overflow: "hidden" }}>
       {/* SIDEBAR */}
-      <div
-        style={{
-          width: 370,
-          minWidth: 370,
-          height: "100vh",
-          backgroundColor: "#0f172a",
-          display: "flex",
-          flexDirection: "column",
-          zIndex: 1000,
-          overflowY: "auto",
-        }}
-      >
-        <div
-          style={{
-            padding: "20px 18px 14px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <Link
-            to="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              color: "#64748b",
-              textDecoration: "none",
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              marginBottom: 14,
-            }}
-          >
-            <ArrowLeft size={13} /> Kembali ke Home
+      <div style={{ width: 370, minWidth: 370, height: "100vh", backgroundColor: "#0f172a", display: "flex", flexDirection: "column", zIndex: 1000, overflowY: "auto" }}>
+        
+        <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#64748b", textDecoration: "none", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+            <ArrowLeft size={13} /> Kembali
           </Link>
-          <h2
-            style={{
-              color: "white",
-              fontWeight: 900,
-              fontSize: "1.2rem",
-              margin: 0,
-            }}
-          >
-            EKSPLORASI
-          </h2>
-          <h2
-            style={{
-              color: "#3b82f6",
-              fontWeight: 900,
-              fontSize: "1.2rem",
-              margin: "2px 0 0",
-              fontStyle: "italic",
-            }}
-          >
-            TITIK PARKIR
-          </h2>
-          <p
-            style={{
-              color: "#475569",
-              fontSize: 9,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              marginTop: 4,
-            }}
-          >
+          <h2 style={{ color: "white", fontWeight: 900, fontSize: "1.2rem", margin: 0 }}>EKSPLORASI</h2>
+          <h2 style={{ color: "#3b82f6", fontWeight: 900, fontSize: "1.2rem", margin: "2px 0 0", fontStyle: "italic" }}>TITIK PARKIR</h2>
+          <p style={{ color: "#475569", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.2em", marginTop: 4 }}>
             Kecamatan Ratu Agung Digital Map
           </p>
         </div>
 
         <div style={{ padding: "14px 16px 0" }}>
           <div style={{ position: "relative" }}>
-            <Search
-              size={14}
-              style={{
-                position: "absolute",
-                left: 13,
-                top: 12,
-                color: "#475569",
-              }}
-            />
+            <Search size={14} style={{ position: "absolute", left: 13, top: 12, color: "#475569" }} />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari lokasi, jalan, atau gedung..."
-              style={{
-                width: "100%",
-                padding: "11px 12px 11px 38px",
-                backgroundColor: "#1e293b",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: 12,
-                color: "white",
-                fontSize: 13,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
+              onChange={(e) => { setSearch(e.target.value); setTerdekatMode(false); }}
+              placeholder="Cari lokasi parkir..."
+              style={{ width: "100%", padding: "11px 12px 11px 38px", backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, color: "white", fontSize: 13, outline: "none", boxSizing: "border-box" }}
             />
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 7, padding: "10px 16px" }}>
           {["Semua", "Mobil", "Motor"].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 20,
-                border: "none",
-                fontWeight: 700,
-                fontSize: 11,
-                cursor: "pointer",
-                backgroundColor: filter === f ? "#2563eb" : "#1e293b",
-                color: filter === f ? "white" : "#64748b",
-                textTransform: "uppercase",
-              }}
-            >
+            <button key={f} onClick={() => { setFilter(f); setTerdekatMode(false); }}
+              style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: filter === f && !terdekatMode ? "#2563eb" : "#1e293b", color: filter === f && !terdekatMode ? "white" : "#64748b", textTransform: "uppercase" }}>
               {f}
             </button>
           ))}
+          <button onClick={terdekatMode ? handleResetTerdekat : handleCariTerdekat}
+            style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: terdekatMode ? "#22c55e" : "#1e293b", color: terdekatMode ? "white" : "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
+            <Navigation size={11} /> {terdekatMode ? "Reset" : "Terdekat"}
+          </button>
         </div>
 
-        <div
-          style={{
-            padding: "0 16px 10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        <div style={{ padding: "0 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <div
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                backgroundColor: "#3b82f6",
-                boxShadow: "0 0 7px #3b82f6",
-              }}
-            />
-            <span
-              style={{
-                color: "#94a3b8",
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              Terdeteksi {filtered.length} Lokasi
+            <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#3b82f6", boxShadow: "0 0 7px #3b82f6" }} />
+            <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              {terdekatMode ? `${filtered.length} Terdekat` : `${filtered.length} Lokasi`}
             </span>
           </div>
           <Filter size={13} color="#475569" />
@@ -242,103 +203,34 @@ const MapPage = () => {
 
         <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 16px" }}>
           {filtered.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleSelect(item)}
-              style={{
-                backgroundColor:
-                  selected?.id === item.id ? "#1e3a5f" : "#1e293b",
-                borderRadius: 14,
-                marginBottom: 9,
-                overflow: "hidden",
-                cursor: "pointer",
-                border:
-                  selected?.id === item.id
-                    ? "1px solid #3b82f6"
-                    : "1px solid transparent",
-                transition: "all 0.2s",
-              }}
-            >
-              <div style={{ position: "relative" }}>
-                <img
-                  src={item.img}
-                  alt={item.nama}
-                  style={{
-                    width: "100%",
-                    height: 110,
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
-                />
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    backgroundColor: statusColor(item.status),
-                    color: "white",
-                    padding: "3px 9px",
-                    borderRadius: 20,
-                    fontSize: 10,
-                    fontWeight: 800,
-                  }}
-                >
-                  {item.status}
-                </span>
-              </div>
-              <div style={{ padding: "10px 13px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    marginBottom: 3,
-                  }}
-                >
-                  <Star size={11} color="#fbbf24" fill="#fbbf24" />
-                  <span
-                    style={{ color: "#fbbf24", fontSize: 11, fontWeight: 700 }}
-                  >
-                    {item.rating}
+            <div key={item.id} onClick={() => handleSelect(item)}
+              style={{ backgroundColor: selected?.id === item.id ? "#1e3a5f" : "#1e293b", borderRadius: 14, marginBottom: 9, overflow: "hidden", cursor: "pointer", border: selected?.id === item.id ? "1px solid #3b82f6" : "1px solid transparent", transition: "all 0.2s" }}>
+              <div style={{ padding: "12px 13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                  <h4 style={{ color: "white", fontWeight: 900, margin: 0, fontSize: 13, flex: 1, marginRight: 8 }}>{item.nama}</h4>
+                  <span style={{ backgroundColor: getMarkerColor(item) + "30", color: getMarkerColor(item), padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap" }}>
+                    {getStatusLabel(item)}
                   </span>
                 </div>
-                <h4
-                  style={{
-                    color: "white",
-                    fontWeight: 900,
-                    margin: "0 0 3px",
-                    fontSize: 13,
-                  }}
-                >
-                  {item.nama}
-                </h4>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
                   <MapPin size={10} color="#64748b" />
-                  <p style={{ color: "#64748b", fontSize: 10, margin: 0 }}>
-                    {item.alamat}
-                  </p>
+                  <p style={{ color: "#64748b", fontSize: 10, margin: 0 }}>{item.alamat}</p>
                 </div>
-                <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 4 }}
-                  >
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <Clock size={10} color="#475569" />
-                    <span style={{ color: "#475569", fontSize: 10 }}>
-                      {item.jamOperasional}
-                    </span>
+                    <span style={{ color: "#475569", fontSize: 10 }}>{formatJam(item.jam_buka)} - {formatJam(item.jam_tutup)}</span>
                   </div>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 4 }}
-                  >
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <Car size={10} color="#475569" />
-                    <span style={{ color: "#475569", fontSize: 10 }}>
-                      {item.slotTersedia}/{item.totalSlot} slot
-                    </span>
+                    <span style={{ color: "#475569", fontSize: 10 }}>Mobil: {item.kapasitas_mobil} | Motor: {item.kapasitas_motor}</span>
                   </div>
                 </div>
+                {item.jarak_meter && (
+                  <div style={{ marginTop: 6, color: "#22c55e", fontSize: 10, fontWeight: 700 }}>
+                    📍 {(item.jarak_meter / 1000).toFixed(2)} km dari lokasi kamu
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -347,219 +239,66 @@ const MapPage = () => {
 
       {/* MAP */}
       <div style={{ flex: 1, position: "relative" }}>
-        <MapContainer
-          center={[-3.7988, 102.2614]}
-          zoom={15}
-          style={{ width: "100%", height: "100%" }}
-          zoomControl={false}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          />
+        <MapContainer center={[-3.7988, 102.2614]} zoom={15} style={{ width: "100%", height: "100%" }} zoomControl={false}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
           <FlyAndOpen target={flyTarget} markerRefs={markerRefs} />
           {filtered.map((item) => (
             <Marker
               key={item.id}
-              position={[item.lat, item.lng]}
-              icon={statusIcon(item.status)}
-              ref={(r) => {
-                markerRefs.current[item.id] = r;
-              }}
+              position={[item.latitude, item.longitude]}
+              icon={createIcon(getMarkerColor(item))}
+              ref={(r) => { markerRefs.current[item.id] = r; }}
               eventHandlers={{ click: () => setSelected(item) }}
             >
-              <Popup maxWidth={260}>
+              <Popup maxWidth={280}>
                 <div style={{ fontFamily: "sans-serif", padding: 4 }}>
-                  <img
-                    src={item.img}
-                    alt={item.nama}
-                    style={{
-                      width: "100%",
-                      height: 110,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      marginBottom: 10,
-                    }}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                    }}
-                  />
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: 6,
-                    }}
-                  >
-                    <strong
-                      style={{
-                        fontSize: 13,
-                        color: "#0f172a",
-                        lineHeight: 1.3,
-                        flex: 1,
-                      }}
-                    >
-                      {item.nama}
-                    </strong>
-                    <span
-                      style={{
-                        backgroundColor: statusColor(item.status) + "20",
-                        color: statusColor(item.status),
-                        padding: "3px 8px",
-                        borderRadius: 20,
-                        fontSize: 10,
-                        fontWeight: 800,
-                        marginLeft: 8,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.status}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <strong style={{ fontSize: 14, color: "#0f172a", lineHeight: 1.3, flex: 1 }}>{item.nama}</strong>
+                    <span style={{ backgroundColor: getMarkerColor(item) + "20", color: getMarkerColor(item), padding: "3px 8px", borderRadius: 20, fontSize: 10, fontWeight: 800, marginLeft: 8 }}>
+                      {getStatusLabel(item)}
                     </span>
                   </div>
-                  <p
-                    style={{
-                      margin: "0 0 8px",
-                      fontSize: 11,
-                      color: "#64748b",
-                    }}
-                  >
-                    {item.alamat}
-                  </p>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 6,
-                      marginBottom: 8,
-                    }}
-                  >
+                  <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b" }}>{item.alamat}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                     {[
-                      {
-                        label: "Slot",
-                        val: `${item.slotTersedia}/${item.totalSlot}`,
-                      },
-                      { label: "Rating", val: `⭐ ${item.rating}` },
-                      { label: "Mobil", val: item.tarif.mobil },
-                      { label: "Motor", val: item.tarif.motor },
+                      { label: "Jenis", val: item.jenis_lahan || "-" },
+                      { label: "Jam Buka", val: `${formatJam(item.jam_buka)} - ${formatJam(item.jam_tutup)}` },
+                      { label: "Kapasitas Mobil", val: `${item.kapasitas_mobil} slot` },
+                      { label: "Kapasitas Motor", val: `${item.kapasitas_motor} slot` },
                     ].map((d) => (
-                      <div
-                        key={d.label}
-                        style={{
-                          backgroundColor: "#f8fafc",
-                          borderRadius: 8,
-                          padding: "6px 8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 9,
-                            color: "#94a3b8",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            marginBottom: 2,
-                          }}
-                        >
-                          {d.label}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            color: "#0f172a",
-                          }}
-                        >
-                          {d.val}
-                        </div>
+                      <div key={d.label} style={{ backgroundColor: "#f8fafc", borderRadius: 8, padding: "6px 8px" }}>
+                        <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>{d.label}</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>{d.val}</div>
                       </div>
                     ))}
                   </div>
-                  <div
-                    style={{ fontSize: 11, color: "#475569", marginBottom: 8 }}
-                  >
-                    🕐 {item.jamOperasional}
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {item.fasilitas.map((f) => (
-                      <span
-                        key={f}
-                        style={{
-                          backgroundColor: "#eff6ff",
-                          color: "#2563eb",
-                          padding: "3px 8px",
-                          borderRadius: 20,
-                          fontSize: 10,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {f}
-                      </span>
-                    ))}
-                  </div>
+                  {item.tarifs && item.tarifs.length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>TARIF:</div>
+                      {item.tarifs.map((t) => (
+                        <div key={t.id} style={{ fontSize: 11, color: "#334155" }}>
+                          {t.jenis_kendaraan}: {formatRupiah(t.tarif_jam_pertama)}/jam pertama, {formatRupiah(t.tarif_jam_berikutnya)}/jam berikutnya
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {item.jarak_meter && (
+                    <div style={{ marginTop: 8, color: "#22c55e", fontSize: 11, fontWeight: 700 }}>
+                      📍 {(item.jarak_meter / 1000).toFixed(2)} km dari lokasi kamu
+                    </div>
+                  )}
                 </div>
               </Popup>
             </Marker>
           ))}
         </MapContainer>
 
-        {/* Legend */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 20,
-            right: 20,
-            zIndex: 999,
-            backgroundColor: "rgba(15,23,42,0.92)",
-            backdropFilter: "blur(12px)",
-            borderRadius: 14,
-            padding: "14px 18px",
-            border: "1px solid rgba(255,255,255,0.07)",
-          }}
-        >
-          <p
-            style={{
-              color: "#475569",
-              fontSize: 9,
-              fontWeight: 900,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              margin: "0 0 10px",
-            }}
-          >
-            MAP INDICATORS
-          </p>
-          {[
-            { color: "#22c55e", label: "Titik Tersedia" },
-            { color: "#f97316", label: "Titik Padat" },
-            { color: "#ef4444", label: "Sedang Tutup" },
-          ].map((ind) => (
-            <div
-              key={ind.label}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
-                marginBottom: 7,
-              }}
-            >
-              <div
-                style={{
-                  width: 9,
-                  height: 9,
-                  borderRadius: "50%",
-                  backgroundColor: ind.color,
-                }}
-              />
-              <span
-                style={{
-                  color: "#94a3b8",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                }}
-              >
-                {ind.label}
-              </span>
+        <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 999, backgroundColor: "rgba(15,23,42,0.92)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "14px 18px", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <p style={{ color: "#475569", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", margin: "0 0 10px" }}>KETERANGAN</p>
+          {[{ color: "#22c55e", label: "Sedang Buka" }, { color: "#ef4444", label: "Sedang Tutup" }, { color: "#3b82f6", label: "Tidak Diketahui" }].map((ind) => (
+            <div key={ind.label} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+              <div style={{ width: 9, height: 9, borderRadius: "50%", backgroundColor: ind.color }} />
+              <span style={{ color: "#94a3b8", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>{ind.label}</span>
             </div>
           ))}
         </div>

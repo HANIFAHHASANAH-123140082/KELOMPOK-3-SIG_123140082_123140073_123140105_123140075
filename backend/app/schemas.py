@@ -1,12 +1,13 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import time
 
-# --- SCHEMA TARIF ---
 class TarifBase(BaseModel):
     jenis_kendaraan: str
-    biaya: float
+    tarif_jam_pertama: int
+    tarif_jam_berikutnya: int
 
-class TarifCreate(TarifBase): # Ini yang tadi hilang
+class TarifCreate(TarifBase):
     pass
 
 class TarifOut(TarifBase):
@@ -15,22 +16,30 @@ class TarifOut(TarifBase):
     class Config:
         from_attributes = True
 
-# --- SCHEMA PARKIR ---
 class ParkirBase(BaseModel):
-    nama_lokasi: str
+    nama: str
     alamat: Optional[str] = None
+    jenis_lahan: Optional[str] = None
     kapasitas_mobil: int = 0
     kapasitas_motor: int = 0
+    jam_buka: Optional[time] = None
+    jam_tutup: Optional[time] = None
 
 class ParkirCreate(ParkirBase):
     latitude: float
     longitude: float
 
+class ParkirUpdate(ParkirBase):
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
 class ParkirOut(ParkirBase):
     id: int
-    latitude: float
-    longitude: float
-    tarifs: List[TarifOut] = [] # Menampilkan daftar tarif jika ada
-
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    tarifs: List[TarifOut] = []
     class Config:
         from_attributes = True
+
+class ParkirTerdekat(ParkirOut):
+    jarak_meter: Optional[float] = None
