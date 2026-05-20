@@ -55,6 +55,58 @@ def get_tarif(parkir_id: int, db: Session = Depends(get_db)):
 def create_tarif(parkir_id: int, tarif: schemas.TarifCreate, db: Session = Depends(get_db)):
     return crud.create_tarif(db, tarif, parkir_id)
 
+# ===== GEOJSON ENDPOINTS =====
+@router.get("/parkir/geojson")
+def get_parkir_geojson(db: Session = Depends(get_db)):
+    parkirs = crud.get_all_parkir(db)
+    features = []
+    for p in parkirs:
+        if p["latitude"] and p["longitude"]:
+            features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [p["longitude"], p["latitude"]]
+                },
+                "properties": {
+                    "id": p["id"],
+                    "nama": p["nama"],
+                    "alamat": p["alamat"],
+                    "jenis_lahan": p["jenis_lahan"],
+                    "kapasitas_mobil": p["kapasitas_mobil"],
+                    "kapasitas_motor": p["kapasitas_motor"],
+                    "jam_buka": str(p["jam_buka"]) if p["jam_buka"] else None,
+                    "jam_tutup": str(p["jam_tutup"]) if p["jam_tutup"] else None,
+                }
+            })
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
+
+@router.get("/kecamatan/geojson")
+def get_kecamatan_geojson(db: Session = Depends(get_db)):
+    return {
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [102.255, -3.780],
+                    [102.285, -3.780],
+                    [102.285, -3.810],
+                    [102.255, -3.810],
+                    [102.255, -3.780]
+                ]]
+            },
+            "properties": {
+                "nama": "Kecamatan Ratu Agung",
+                "kota": "Kota Bengkulu"
+            }
+        }]
+    }
+
 # ===== KECAMATAN =====
 @router.get("/kecamatan")
 def get_kecamatan(db: Session = Depends(get_db)):
