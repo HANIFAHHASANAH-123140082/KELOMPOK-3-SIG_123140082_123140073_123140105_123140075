@@ -3,33 +3,47 @@ from sqlalchemy import func
 from app import models, schemas
 
 def get_all_parkir(db: Session):
-    results = db.query(
-        models.Parkir.id,
-        models.Parkir.nama,
-        models.Parkir.alamat,
-        models.Parkir.jenis_lahan,
-        models.Parkir.kapasitas_mobil,
-        models.Parkir.kapasitas_motor,
-        models.Parkir.jam_buka,
-        models.Parkir.jam_tutup,
-        func.ST_Y(models.Parkir.koordinat).label("latitude"),
-        func.ST_X(models.Parkir.koordinat).label("longitude"),
-    ).all()
-    return results
+    parkirs = db.query(models.Parkir).all()
+    result = []
+    for p in parkirs:
+        result.append({
+            "id": p.id,
+            "nama": p.nama,
+            "alamat": p.alamat,
+            "jenis_lahan": p.jenis_lahan,
+            "kapasitas_mobil": p.kapasitas_mobil,
+            "kapasitas_motor": p.kapasitas_motor,
+            "jam_buka": p.jam_buka,
+            "jam_tutup": p.jam_tutup,
+            "latitude": db.execute(
+                func.ST_Y(p.koordinat)
+            ).scalar() if p.koordinat else None,
+            "longitude": db.execute(
+                func.ST_X(p.koordinat)
+            ).scalar() if p.koordinat else None,
+            "tarifs": p.tarifs,
+        })
+    return result
 
 def get_parkir_by_id(db: Session, parkir_id: int):
-    return db.query(
-        models.Parkir.id,
-        models.Parkir.nama,
-        models.Parkir.alamat,
-        models.Parkir.jenis_lahan,
-        models.Parkir.kapasitas_mobil,
-        models.Parkir.kapasitas_motor,
-        models.Parkir.jam_buka,
-        models.Parkir.jam_tutup,
-        func.ST_Y(models.Parkir.koordinat).label("latitude"),
-        func.ST_X(models.Parkir.koordinat).label("longitude"),
-    ).filter(models.Parkir.id == parkir_id).first()
+    p = db.query(models.Parkir).filter(models.Parkir.id == parkir_id).first()
+    if not p:
+        return None
+    lat = db.scalar(func.ST_Y(p.koordinat)) if p.koordinat else None
+    lng = db.scalar(func.ST_X(p.koordinat)) if p.koordinat else None
+    return {
+        "id": p.id,
+        "nama": p.nama,
+        "alamat": p.alamat,
+        "jenis_lahan": p.jenis_lahan,
+        "kapasitas_mobil": p.kapasitas_mobil,
+        "kapasitas_motor": p.kapasitas_motor,
+        "jam_buka": p.jam_buka,
+        "jam_tutup": p.jam_tutup,
+        "latitude": lat,
+        "longitude": lng,
+        "tarifs": p.tarifs,
+    }
 
 def create_parkir(db: Session, parkir: schemas.ParkirCreate):
     point_wkt = f"POINT({parkir.longitude} {parkir.latitude})"
