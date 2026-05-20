@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import axios from "axios";
 import "leaflet/dist/leaflet.css";
@@ -241,6 +241,23 @@ const MapPage = () => {
       <div style={{ flex: 1, position: "relative" }}>
         <MapContainer center={[-3.7988, 102.2614]} zoom={15} style={{ width: "100%", height: "100%" }} zoomControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
+          <GeoJSON
+            data={{
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                  [102.255, -3.780],
+                  [102.285, -3.780],
+                  [102.285, -3.810],
+                  [102.255, -3.810],
+                  [102.255, -3.780]
+                ]]
+              },
+              properties: { nama: "Kecamatan Ratu Agung" }
+            }}
+            style={{ color: "#3b82f6", weight: 2, fillOpacity: 0.05, fillColor: "#3b82f6" }}
+          />
           <FlyAndOpen target={flyTarget} markerRefs={markerRefs} />
           {filtered.map((item) => (
             <Marker
