@@ -139,8 +139,6 @@ npm start
 ```
 Aplikasi berjalan di: http://localhost:3000
 
----
-
 ## Struktur Folder
 
 ```
