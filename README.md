@@ -139,41 +139,40 @@ npm start
 ```
 Aplikasi berjalan di: http://localhost:3000
 
----
-
 ## Struktur Folder
+
+```
 KELOMPOK-3-SIG/
 │
 ├── database/
-│   ├── schema.sql          # DDL: CREATE TABLE, spatial index
-│   └── seed.sql            # Data sample 20 lokasi parkir
+│   ├── schema.sql              # DDL: CREATE TABLE + spatial index GiST
+│   └── seed.sql                # Data sample 20 lokasi parkir
 │
 ├── backend/
 │   ├── app/
-│   │   ├── main.py         # Entry point FastAPI + CORS
-│   │   ├── database.py     # Koneksi PostgreSQL
-│   │   ├── models.py       # SQLAlchemy models (ORM)
-│   │   ├── schemas.py      # Pydantic schemas (validasi)
-│   │   ├── crud.py         # Fungsi database + query spasial
+│   │   ├── main.py             # Entry point FastAPI + CORS middleware
+│   │   ├── database.py         # Koneksi PostgreSQL + SessionLocal
+│   │   ├── models.py           # SQLAlchemy ORM models
+│   │   ├── schemas.py          # Pydantic schemas (validasi input/output)
+│   │   ├── crud.py             # Query database + 2 query spasial
 │   │   └── api/
-│   │       └── endpoints.py # Semua route API
-│   ├── .env.example        # Template konfigurasi
-│   └── requirements.txt    # Dependencies Python
+│   │       └── endpoints.py    # Semua route REST API (10 endpoint)
+│   ├── .env.example            # Template konfigurasi environment
+│   └── requirements.txt        # Dependencies Python
 │
 ├── frontend/
 │   └── src/
 │       ├── pages/
-│       │   ├── LandingPage.js    # Halaman utama
-│       │   ├── MapPage.js        # Peta interaktif (konek API)
-│       │   ├── AdminLogin.js     # Login admin
+│       │   ├── LandingPage.js  # Halaman utama / hero page
+│       │   ├── MapPage.js      # Peta interaktif (terhubung ke API)
+│       │   ├── AdminLogin.js   # Halaman login admin
 │       │   └── AdminDashboard.js # CRUD data parkir
 │       └── components/
 │           └── LoadingScreen.js
 │
 ├── PROPOSAL KELOMPOK 3_...pdf
 └── README.md
-
----
+```
 
 ## Akses Admin
 
