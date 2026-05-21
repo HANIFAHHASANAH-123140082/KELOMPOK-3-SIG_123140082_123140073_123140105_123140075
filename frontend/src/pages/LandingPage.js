@@ -23,7 +23,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0a0f1e] text-white overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#0a0f1e] text-white overflow-hidden">
       <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-blue-600/10 blur-[160px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-600/8 blur-[120px] rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
