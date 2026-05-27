@@ -13,6 +13,7 @@ import MapPage from "./pages/MapPage";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import LoadingScreen from "./components/LoadingScreen";
+import NotFoundPage from "./pages/NotFoundPage";
 
 /**
  * SISTEM WEBGIS PARKIR RATU AGUNG v2.0
@@ -68,7 +69,7 @@ function App() {
           />
 
           {/* Catch-all Route: Jika user mengetik URL ngasal, lempar ke Landing Page */}
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
     </Router>
