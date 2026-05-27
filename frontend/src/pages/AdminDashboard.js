@@ -39,9 +39,36 @@ const AdminDashboard = () => {
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
-  const [saving, setSaving] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // FITUR 5: State untuk Search Bar
+  const [searchAdmin, setSearchAdmin] = useState("");
+
+  // Fungsi Export CSV
+  const exportCSV = () => {
+    const headers = ["ID", "Nama", "Alamat", "Jenis Lahan", "Kapasitas Mobil", "Kapasitas Motor", "Jam Buka", "Jam Tutup", "Status"];
+    const rows = data.map(item => [
+      item.id,
+      item.nama,
+      item.alamat || "-",
+      item.jenis_lahan || "-",
+      item.kapasitas_mobil,
+      item.kapasitas_motor,
+      item.jam_buka ? item.jam_buka.substring(0, 5) : "-",
+      item.jam_tutup ? item.jam_tutup.substring(0, 5) : "-",
+      getStatus(item)
+    ]);
+    const csvContent = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "data_parkir_ratu_agung.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const fetchData = () => {
     axios.get(`${API}/parkir`)
@@ -227,7 +254,6 @@ const AdminDashboard = () => {
           flex: 1,
           padding: "32px 36px",
           overflowY: "auto",
-          // Geser konten ke kanan saat sidebar terbuka di desktop
           marginLeft: sidebarOpen ? 250 : 0,
           transition: "margin-left 0.3s cubic-bezier(0.4,0,0.2,1)",
         }}>
@@ -251,7 +277,7 @@ const AdminDashboard = () => {
             </button>
           )}
 
-          {/* ===== HALAMAN DATA SPASIAL ===== */}
+{/* ===== HALAMAN DATA SPASIAL ===== */}
           {activePage === "spasial" && (
             <div>
               <div style={{ marginBottom: 28 }}>
@@ -390,9 +416,68 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </div>
+
+              {/* CHART STATISTIK */}
+              <div style={{ backgroundColor: "white", borderRadius: 16, boxShadow: "0 2px 10px rgba(0,0,0,0.04)", padding: "24px", marginTop: 18 }}>
+                <h3 style={{ margin: "0 0 20px", fontSize: 14, fontWeight: 900, color: "#0f172a" }}>📊 Statistik Visual</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                  {/* PIE CHART: Terbuka vs Gedung */}
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>Jenis Lahan Parkir</p>
+                    {(() => {
+                      const terbuka = data.filter(d => d.jenis_lahan === "terbuka").length;
+                      const gedung = data.filter(d => d.jenis_lahan === "gedung").length;
+                      const total = terbuka + gedung || 1;
+                      return (
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                            <div style={{ flex: 1, height: 24, backgroundColor: "#f1f5f9", borderRadius: 12, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${(terbuka/total)*100}%`, backgroundColor: "#3b82f6", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <span style={{ color: "white", fontSize: 10, fontWeight: 900 }}>{terbuka}</span>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 700, minWidth: 60 }}>Terbuka</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                            <div style={{ flex: 1, height: 24, backgroundColor: "#f1f5f9", borderRadius: 12, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${(gedung/total)*100}%`, backgroundColor: "#8b5cf6", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <span style={{ color: "white", fontSize: 10, fontWeight: 900 }}>{gedung}</span>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 12, color: "#8b5cf6", fontWeight: 700, minWidth: 60 }}>Gedung</span>
+                          </div>
+                          <p style={{ fontSize: 11, color: "#94a3b8", margin: "8px 0 0" }}>
+                            {terbuka} parkir terbuka ({Math.round((terbuka/total)*100)}%) · {gedung} gedung parkir ({Math.round((gedung/total)*100)}%)
+                          </p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  {/* BAR CHART: Top 5 Kapasitas */}
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>Top 5 Kapasitas Terbesar</p>
+                    {[...data].sort((a, b) => (b.kapasitas_mobil + b.kapasitas_motor) - (a.kapasitas_mobil + a.kapasitas_motor)).slice(0, 5).map(item => {
+                      const total = item.kapasitas_mobil + item.kapasitas_motor;
+                      const maxTotal = Math.max(...data.map(d => d.kapasitas_mobil + d.kapasitas_motor));
+                      return (
+                        <div key={item.id} style={{ marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                            <span style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>{item.nama.replace("Parkir ", "")}</span>
+                            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 700 }}>{total} slot</span>
+                          </div>
+                          <div style={{ height: 8, backgroundColor: "#f1f5f9", borderRadius: 8, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${(total/maxTotal)*100}%`, backgroundColor: "#22c55e", borderRadius: 8, transition: "width 0.5s ease" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
             </div>
           )}
-
+          
           {/* ===== HALAMAN PENGATURAN ===== */}
           {activePage === "pengaturan" && (
             <div>
@@ -475,14 +560,23 @@ const AdminDashboard = () => {
           {/* ===== HALAMAN DASHBOARD ===== */}
           {activePage === "dashboard" && (
             <div>
+              {/* Bagian Flex Header Tombol Baru */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
                 <div>
                   <h1 style={{ fontSize: "1.5rem", fontWeight: 900, color: "#0f172a", margin: 0 }}>Kelola Titik Parkir</h1>
                   <p style={{ color: "#64748b", marginTop: 4, fontSize: 13 }}>Kecamatan Ratu Agung, Kota Bengkulu</p>
                 </div>
-                <button onClick={openAdd} style={{ backgroundColor: "#2563eb", color: "white", border: "none", padding: "12px 20px", borderRadius: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
-                  <Plus size={17} /> Tambah Lokasi Baru
-                </button>
+                
+                {/* Pembungkus Flex Tombol Export dan Tombol Tambah Lokasi */}
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <button onClick={exportCSV}
+                    style={{ backgroundColor: "#059669", color: "white", border: "none", padding: "12px 20px", borderRadius: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, marginRight: 10 }}>
+                    📥 Export CSV
+                  </button>
+                  <button onClick={openAdd} style={{ backgroundColor: "#2563eb", color: "white", border: "none", padding: "12px 20px", borderRadius: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                    <Plus size={17} /> Tambah Lokasi Baru
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18, marginBottom: 28 }}>
@@ -503,123 +597,186 @@ const AdminDashboard = () => {
                 {loading ? (
                   <div style={{ textAlign: "center", padding: 60, color: "#94a3b8" }}>Memuat data...</div>
                 ) : (
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead style={{ backgroundColor: "#f8fafc" }}>
-                      <tr>
-                        {["Nama Lokasi", "Jenis", "Status", "Kapasitas", "Jam Operasional", "Aksi"].map((h) => (
-                          <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "0.72rem", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", fontWeight: 700 }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.map((item) => (
-                        <tr key={item.id} style={{ borderBottom: "1px solid #f8fafc" }}>
-                          <td style={{ padding: "14px 16px" }}>
-                            <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{item.nama}</div>
-                            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{item.alamat}</div>
-                          </td>
-                          <td style={{ padding: "14px 16px", fontSize: 13, color: "#334155" }}>{item.jenis_lahan || "-"}</td>
-                          <td style={{ padding: "14px 16px" }}>
-                            <span style={{ backgroundColor: (getStatus(item) === "Buka" ? "#22c55e" : "#ef4444") + "18", color: getStatus(item) === "Buka" ? "#22c55e" : "#ef4444", padding: "4px 11px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                              {getStatus(item)}
-                            </span>
-                          </td>
-                          <td style={{ padding: "14px 16px", fontSize: 13, color: "#334155" }}>🚗 {item.kapasitas_mobil} | 🏍️ {item.kapasitas_motor}</td>
-                          <td style={{ padding: "14px 16px", fontSize: 13, color: "#334155" }}>
-                            {item.jam_buka?.substring(0, 5)} - {item.jam_tutup?.substring(0, 5)}
-                          </td>
-                          <td style={{ padding: "14px 16px" }}>
-                            <button onClick={() => openEdit(item)} style={{ border: "none", background: "#eff6ff", color: "#2563eb", padding: "8px 10px", borderRadius: 8, marginRight: 8, cursor: "pointer" }}><Edit size={14} /></button>
-                            <button onClick={() => openDelete(item.id)} style={{ border: "none", background: "#fef2f2", color: "#ef4444", padding: "8px 10px", borderRadius: 8, cursor: "pointer" }}><Trash2 size={14} /></button>
-                          </td>
+                  <>
+                    {/* FITUR 5: SEARCH BAR COMPONENT */}
+                    <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ position: "relative", flex: 1 }}>
+                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}>🔍</span>
+                        <input
+                          value={searchAdmin}
+                          onChange={e => setSearchAdmin(e.target.value)}
+                          placeholder="Cari nama atau alamat parkir..."
+                          style={{ width: "100%", padding: "10px 12px 10px 36px", borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", color: "#0f172a" }}
+                        />
+                      </div>
+                      {searchAdmin && (
+                        <button onClick={() => setSearchAdmin("")}
+                          style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "white", cursor: "pointer", fontSize: 12, color: "#64748b", fontWeight: 700 }}>
+                          Reset
+                        </button>
+                      )}
+                    </div>
+
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead style={{ backgroundColor: "#f8fafc" }}>
+                        <tr>
+                          {["Nama Lokasi", "Jenis", "Status", "Kapasitas", "Jam Operasional", "Aksi"].map((h) => (
+                            <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "0.72rem", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", fontWeight: 700 }}>{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {/* FITUR 5: MAPPING DATA DENGAN SUNTIKAN FILTER */}
+                        {data.filter(item =>
+                          item.nama.toLowerCase().includes(searchAdmin.toLowerCase()) ||
+                          (item.alamat && item.alamat.toLowerCase().includes(searchAdmin.toLowerCase()))
+                        ).map((item) => (
+                          <tr key={item.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                            <td style={{ padding: "14px 16px" }}>
+                              <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>{item.nama}</div>
+                              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{item.alamat}</div>
+                            </td>
+                            <td style={{ padding: "14px 16px", fontSize: 13, color: "#334155" }}>{item.jenis_lahan || "-"}</td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span style={{ backgroundColor: (getStatus(item) === "Buka" ? "#22c55e" : "#ef4444") + "18", color: getStatus(item) === "Buka" ? "#22c55e" : "#ef4444", padding: "4px 11px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                                {getStatus(item)}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px", fontSize: 13, color: "#475569" }}>
+                              🚗 {item.kapasitas_mobil} | 🏍️ {item.kapasitas_motor}
+                            </td>
+                            <td style={{ padding: "14px 16px", fontSize: 13, color: "#475569" }}>
+                              ⏱️ {item.jam_buka ? item.jam_buka.substring(0,5) : "-"} - {item.jam_tutup ? item.jam_tutup.substring(0,5) : "-"}
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button onClick={() => openEdit(item)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, backgroundColor: "#eff6ff", border: "none", borderRadius: 8, cursor: "pointer", color: "#2563eb" }}>
+                                  <Edit size={15} />
+                                </button>
+                                <button onClick={() => openDelete(item.id)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, backgroundColor: "#fef2f2", border: "none", borderRadius: 8, cursor: "pointer", color: "#ef4444" }}>
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
                 )}
               </div>
             </div>
           )}
         </main>
+      </div>
 
-        {/* ===== MODAL ADD/EDIT ===== */}
-        {(modal === "add" || modal === "edit") && (
-          <Overlay>
-            <div style={{ backgroundColor: "white", borderRadius: 24, padding: 32, width: "100%", maxWidth: 580, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 900, color: "#0f172a" }}>
-                  {modal === "add" ? "Tambah Lokasi Baru" : "Edit Lokasi"}
-                </h2>
-                <button onClick={closeModal} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}><X size={20} /></button>
+      {/* ===== MODAL ADD / EDIT ===== */}
+      {(modal === "add" || modal === "edit") && (
+        <Overlay>
+          <div style={{ backgroundColor: "white", borderRadius: 20, width: "100%", maxWidth: 540, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden", animation: "modalIn 0.2s ease-out" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#f8fafc" }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "#0f172a" }}>
+                {modal === "add" ? "✨ Tambah Lokasi Parkir" : "✏️ Edit Lokasi Parkir"}
+              </h3>
+              <button onClick={closeModal} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 16, maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
+              <div>
+                <label style={labelStyle}>Nama Lokasi *</label>
+                <input value={form.nama} onChange={e => setForm({ ...form, nama: e.target.value })} placeholder="Contoh: Parkir Pasar Minggu" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Alamat Lengkap</label>
+                <textarea value={form.alamat} onChange={e => setForm({ ...form, alamat: e.target.value })} placeholder="Nama jalan, nomor, RT/RW..." style={{ ...inputStyle, height: 70, resize: "none" }} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div style={{ gridColumn: "1/-1" }}>
-                  <label style={labelStyle}>Nama Lokasi *</label>
-                  <input style={inputStyle} value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Contoh: Parkir Pasar Ratu Agung" />
-                </div>
-                <div style={{ gridColumn: "1/-1" }}>
-                  <label style={labelStyle}>Alamat</label>
-                  <input style={inputStyle} value={form.alamat} onChange={(e) => setForm({ ...form, alamat: e.target.value })} placeholder="Jl. Contoh No. 1, Ratu Agung" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Jenis Lahan</label>
-                  <select style={inputStyle} value={form.jenis_lahan} onChange={(e) => setForm({ ...form, jenis_lahan: e.target.value })}>
-                    <option value="terbuka">Terbuka</option>
-                    <option value="gedung">Gedung</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Kapasitas Mobil</label>
-                  <input style={inputStyle} type="number" value={form.kapasitas_mobil} onChange={(e) => setForm({ ...form, kapasitas_mobil: e.target.value })} placeholder="0" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Kapasitas Motor</label>
-                  <input style={inputStyle} type="number" value={form.kapasitas_motor} onChange={(e) => setForm({ ...form, kapasitas_motor: e.target.value })} placeholder="0" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Jam Buka</label>
-                  <input style={inputStyle} type="time" value={form.jam_buka} onChange={(e) => setForm({ ...form, jam_buka: e.target.value })} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Jam Tutup</label>
-                  <input style={inputStyle} type="time" value={form.jam_tutup} onChange={(e) => setForm({ ...form, jam_tutup: e.target.value })} />
-                </div>
                 <div>
                   <label style={labelStyle}>Latitude *</label>
-                  <input style={inputStyle} type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} placeholder="-3.7988" />
+                  <input type="number" step="any" value={form.latitude} onChange={e => setForm({ ...form, latitude: e.target.value })} placeholder="-3.80123" style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Longitude *</label>
-                  <input style={inputStyle} type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} placeholder="102.2614" />
+                  <input type="number" step="any" value={form.longitude} onChange={e => setForm({ ...form, longitude: e.target.value })} placeholder="102.26123" style={inputStyle} />
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 24, justifyContent: "flex-end" }}>
-                <button onClick={closeModal} style={{ padding: "10px 22px", borderRadius: 12, border: "1px solid #e2e8f0", background: "white", cursor: "pointer", fontWeight: 700, color: "#64748b", fontSize: 13 }}>Batal</button>
-                <button onClick={handleSave} disabled={saving} style={{ padding: "10px 22px", borderRadius: 12, border: "none", background: "#2563eb", color: "white", cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: 7, fontSize: 13 }}>
-                  <Save size={15} /> {saving ? "Menyimpan..." : modal === "add" ? "Simpan" : "Update"}
-                </button>
+              <div>
+                <label style={labelStyle}>Jenis Lahan</label>
+                <select value={form.jenis_lahan} onChange={e => setForm({ ...form, jenis_lahan: e.target.value })} style={inputStyle}>
+                  <option value="terbuka">Terbuka (Halaman/Jalan)</option>
+                  <option value="gedung">Gedung / Indoor</option>
+                  <option value="kanopi">Berkanopi / Atap</option>
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={labelStyle}>Kapasitas Mobil (Slot)</label>
+                  <input type="number" value={form.kapasitas_mobil} onChange={e => setForm({ ...form, kapasitas_mobil: e.target.value })} placeholder="0" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Kapasitas Motor (Slot)</label>
+                  <input type="number" value={form.kapasitas_motor} onChange={e => setForm({ ...form, kapasitas_motor: e.target.value })} placeholder="0" style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={labelStyle}>Jam Buka</label>
+                  <input type="time" value={form.jam_buka} onChange={e => setForm({ ...form, jam_buka: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Jam Tutup</label>
+                  <input type="time" value={form.jam_tutup} onChange={e => setForm({ ...form, jam_tutup: e.target.value })} style={inputStyle} />
+                </div>
               </div>
             </div>
-          </Overlay>
-        )}
+            <div style={{ padding: "16px 24px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", gap: 10, backgroundColor: "#f8fafc" }}>
+              <button onClick={closeModal} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid #e2e8f0", backgroundColor: "white", color: "#64748b", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                Batal
+              </button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: "10px 20px", borderRadius: 10, border: "none", backgroundColor: "#2563eb", color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                <Save size={15} /> {saving ? "Menyimpan..." : "Simpan Data"}
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
 
-        {/* ===== MODAL DELETE ===== */}
-        {modal === "delete" && (
-          <Overlay>
-            <div style={{ backgroundColor: "white", borderRadius: 24, padding: 36, width: "100%", maxWidth: 400, textAlign: "center", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
-              <div style={{ width: 60, height: 60, borderRadius: 18, backgroundColor: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
-                <AlertTriangle size={26} color="#ef4444" />
+      {/* ===== MODAL DELETE WITH NEW CONFIRMATION (FITUR 6) ===== */}
+      {modal === "delete" && (
+        <Overlay>
+          <div style={{ backgroundColor: "white", borderRadius: 20, width: "100%", maxWidth: 400, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", p: 0, overflow: "hidden" }}>
+            <div style={{ padding: "28px 24px 20px", textAlign: "center" }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", backgroundColor: "#fef2f2", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <AlertTriangle size={22} />
               </div>
-              <h3 style={{ margin: "0 0 8px", fontSize: "1.05rem", fontWeight: 900, color: "#0f172a" }}>Hapus Lokasi?</h3>
-              <p style={{ color: "#94a3b8", fontSize: 13, margin: "0 0 26px" }}>Data akan dihapus permanen dari database.</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={closeModal} style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid #e2e8f0", background: "white", cursor: "pointer", fontWeight: 700, color: "#64748b", fontSize: 13 }}>Batal</button>
-                <button onClick={handleDelete} style={{ flex: 1, padding: 12, borderRadius: 12, border: "none", background: "#ef4444", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>Ya, Hapus</button>
+              
+              {/* SUNTIKAN FITUR 6 DI SINI */}
+              <h3 style={{ margin: "0 0 8px", fontSize: "1.05rem", fontWeight: 900, color: "#0f172a" }}>Hapus Lokasi Parkir?</h3>
+              <div style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", margin: "0 0 16px", textAlign: "left" }}>
+                <p style={{ color: "#ef4444", fontSize: 13, fontWeight: 700, margin: 0 }}>
+                  {data.find(d => d.id === deleteId)?.nama || "Lokasi ini"}
+                </p>
+                <p style={{ color: "#94a3b8", fontSize: 11, margin: "4px 0 0" }}>
+                  {data.find(d => d.id === deleteId)?.alamat || ""}
+                </p>
               </div>
+              <p style={{ color: "#94a3b8", fontSize: 13, margin: "0 0 26px", lineHeight: 1.5, textAlign: "center" }}>
+                Data ini akan dihapus permanen dari database dan tidak bisa dikembalikan.
+              </p>
             </div>
-          </Overlay>
-        )}
-      </div>
+            
+            <div style={{ padding: "14px 20px", backgroundColor: "#f8fafc", borderTop: "1px solid #f1f5f9", display: "flex", gap: 10 }}>
+              <button onClick={closeModal} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid #e2e8f0", backgroundColor: "white", color: "#64748b", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                Batal
+              </button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "none", backgroundColor: "#ef4444", color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
     </>
   );
 };
