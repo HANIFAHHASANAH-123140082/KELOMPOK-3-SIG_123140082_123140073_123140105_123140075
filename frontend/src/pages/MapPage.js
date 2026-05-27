@@ -71,6 +71,10 @@ const MapPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const markerRefs = useRef({});
 
+  // FITUR 7: State tambahan untuk mode radius
+  const [radiusMode, setRadiusMode] = useState(false);
+  const [radiusValue, setRadiusValue] = useState(1000);
+
   useEffect(() => {
     axios.get(`${API}/parkir`)
       .then((res) => { setParkirData(res.data); setFiltered(res.data); setLoading(false); })
@@ -78,6 +82,9 @@ const MapPage = () => {
   }, []);
 
   useEffect(() => {
+    // Jalankan filter client-side hanya jika tidak sedang dalam mode Radius atau Terdekat (API-bound)
+    if (radiusMode || terdekatMode) return;
+
     let result = parkirData;
     if (search) result = result.filter(p =>
       p.nama.toLowerCase().includes(search.toLowerCase()) ||
@@ -86,7 +93,7 @@ const MapPage = () => {
     if (filter === "Mobil") result = result.filter(p => p.kapasitas_mobil > 0);
     if (filter === "Motor") result = result.filter(p => p.kapasitas_motor > 0);
     setFiltered(result);
-  }, [search, filter, parkirData]);
+  }, [search, filter, parkirData, radiusMode, terdekatMode]);
 
   const handleSelect = (item) => {
     setSelected(item);
@@ -94,6 +101,7 @@ const MapPage = () => {
   };
 
   const handleCariTerdekat = () => {
+    setRadiusMode(false); // Reset mode radius jika cari terdekat aktif
     if (!navigator.geolocation) {
       const lat = -3.7988, lng = 102.2614;
       axios.get(`${API}/parkir/terdekat?lat=${lat}&lng=${lng}&limit=5`)
@@ -114,6 +122,18 @@ const MapPage = () => {
   };
 
   const handleResetTerdekat = () => { setFiltered(parkirData); setTerdekatMode(false); };
+
+  // FITUR 7: Fungsi handleCariDalamRadius
+  const handleCariDalamRadius = () => {
+    const lat = -3.7988;
+    const lng = 102.2614;
+    axios.get(`${API}/parkir/dalam-radius?lat=${lat}&lng=${lng}&radius=${radiusValue}`)
+      .then(res => {
+        setFiltered(res.data);
+        setRadiusMode(true);
+        setTerdekatMode(false); // Otomatis matikan mode terdekat agar tidak bentrok
+      });
+  };
 
   const getMarkerColor = (item) => {
     const now = new Date();
@@ -146,7 +166,7 @@ const MapPage = () => {
 
       <div style={{ display: "flex", height: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", overflow: "hidden", position: "relative" }}>
 
-        {/* ===== SIDEBAR — overlay, scroll tanpa scrollbar kelihatan ===== */}
+        {/* ===== SIDEBAR ===== */}
         <div
           className="sidebar-scroll"
           style={{
@@ -201,24 +221,30 @@ const MapPage = () => {
               <Search size={14} style={{ position: "absolute", left: 13, top: 12, color: "#475569" }} />
               <input
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setTerdekatMode(false); }}
+                onChange={(e) => { setSearch(e.target.value); setTerdekatMode(false); setRadiusMode(false); }}
                 placeholder="Cari lokasi parkir..."
                 style={{ width: "100%", padding: "11px 12px 11px 38px", backgroundColor: "#1e293b", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, color: "white", fontSize: 13, outline: "none", boxSizing: "border-box" }}
               />
             </div>
           </div>
 
-          {/* ── Filter ── */}
+          {/* ── Filter Buttons ── */}
           <div style={{ display: "flex", gap: 7, padding: "10px 16px", flexWrap: "wrap" }}>
             {["Semua", "Mobil", "Motor"].map((f) => (
-              <button key={f} onClick={() => { setFilter(f); setTerdekatMode(false); }}
-                style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: filter === f && !terdekatMode ? "#2563eb" : "#1e293b", color: filter === f && !terdekatMode ? "white" : "#64748b", textTransform: "uppercase" }}>
+              <button key={f} onClick={() => { setFilter(f); setTerdekatMode(false); setRadiusMode(false); }}
+                style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: filter === f && !terdekatMode && !radiusMode ? "#2563eb" : "#1e293b", color: filter === f && !terdekatMode && !radiusMode ? "white" : "#64748b", textTransform: "uppercase" }}>
                 {f}
               </button>
             ))}
             <button onClick={terdekatMode ? handleResetTerdekat : handleCariTerdekat}
               style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: terdekatMode ? "#22c55e" : "#1e293b", color: terdekatMode ? "white" : "#64748b", display: "flex", alignItems: "center", gap: 4 }}>
               <Navigation size={11} /> {terdekatMode ? "Reset" : "Terdekat"}
+            </button>
+
+            {/* FITUR 7: Tombol Radius */}
+            <button onClick={radiusMode ? () => { setRadiusMode(false); setFiltered(parkirData); } : handleCariDalamRadius}  
+              style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: radiusMode ? "#8b5cf6" : "#1e293b", color: radiusMode ? "white" : "#64748b", display: "flex", alignItems: "center", gap: 4 }}>  
+              🎯 {radiusMode ? "Reset" : "Radius"}
             </button>
           </div>
 
@@ -240,12 +266,36 @@ const MapPage = () => {
             </div>
           </div>
 
+          {/* FITUR 7: Slider kontrol radius yang tampil ketika mode radius aktif */}
+          {radiusMode && (
+            <div style={{ margin: "4px 16px 8px", backgroundColor: "#1e293b", borderRadius: 12, padding: "12px 14px", border: "1px solid #8b5cf6" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ color: "#a78bfa", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>🎯 Filter Radius</span>
+                <span style={{ color: "white", fontSize: 13, fontWeight: 900 }}>{radiusValue} m</span>
+              </div>
+              <input
+                type="range" min="200" max="3000" step="100"
+                value={radiusValue}
+                onChange={e => setRadiusValue(Number(e.target.value))}
+                style={{ width: "100%", accentColor: "#8b5cf6" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={{ color: "#475569", fontSize: 10 }}>200m</span>
+                <span style={{ color: "#475569", fontSize: 10 }}>3000m</span>
+              </div>
+              <button onClick={handleCariDalamRadius}
+                style={{ marginTop: 8, width: "100%", padding: "8px", borderRadius: 8, border: "none", backgroundColor: "#8b5cf6", color: "white", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                Terapkan Radius {radiusValue}m
+              </button>
+            </div>
+          )}
+
           {/* ── Counter ── */}
           <div style={{ padding: "0 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#3b82f6", boxShadow: "0 0 7px #3b82f6" }} />
               <span style={{ color: "#94a3b8", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                {terdekatMode ? `${filtered.length} Terdekat` : `${filtered.length} Lokasi`}
+                {terdekatMode ? `${filtered.length} Terdekat` : radiusMode ? `${filtered.length} Dalam Radius` : `${filtered.length} Lokasi`}
               </span>
             </div>
             <Filter size={13} color="#475569" />
@@ -288,7 +338,7 @@ const MapPage = () => {
           </div>
         </div>
 
-        {/* ===== AREA PETA — full screen, tidak ada overlay/blur ===== */}
+        {/* ===== AREA PETA ===== */}
         <div style={{ flex: 1, position: "relative", width: "100%" }}>
 
           {/* Tombol BUKA ☰ */}
