@@ -8,7 +8,7 @@ import { ArrowLeft, Search, Filter, MapPin, Clock, Car, Navigation, Menu, Chevro
 
 const API = "http://localhost:8000/api";
 
-/* CSS untuk custom scrollbar sidebar */
+// Kustomisasi scrollbar untuk sidebar agar tampilan lebih minimalis
 const hideScrollbarStyle = `
   .sidebar-scroll::-webkit-scrollbar {
     width: 4px;
@@ -29,6 +29,7 @@ const hideScrollbarStyle = `
   }
 `;
 
+// Konfigurasi default icon Leaflet untuk menghindari error image asset tidak ditemukan
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -36,6 +37,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
+// Fungsi pembuat custom marker berbentuk pin lingkaran dinamis berdasarkan warna status
 const createIcon = (color) =>
   L.divIcon({
     className: "",
@@ -45,6 +47,7 @@ const createIcon = (color) =>
     popupAnchor: [0, -22],
   });
 
+// Komponen helper untuk efek animasi transisi peta (fly) dan otomatis membuka popup marker
 const FlyAndOpen = ({ target, markerRefs }) => {
   const map = useMap();
   useEffect(() => {
@@ -55,11 +58,13 @@ const FlyAndOpen = ({ target, markerRefs }) => {
   return null;
 };
 
+// Fungsi utilitas format string waktu dan mata uang rupiah
 const formatJam = (jam) => { if (!jam) return "-"; return jam.substring(0, 5); };
 const formatRupiah = (angka) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(angka);
 
 const MapPage = () => {
+  // State utama penampung data dari backend dan filtering client-side
   const [parkirData, setParkirData] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
@@ -70,19 +75,58 @@ const MapPage = () => {
   const [terdekatMode, setTerdekatMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const markerRefs = useRef({});
+  
+  // State untuk melacak mode tampilan peta (Dark Mode / Light Mode)
+  const [isDark, setIsDark] = useState(true);
 
-  // FITUR 7: State tambahan untuk mode radius
+  // State dan kontrol fitur pencarian berbasis jangkauan radius (Fitur 7)
   const [radiusMode, setRadiusMode] = useState(false);
   const [radiusValue, setRadiusValue] = useState(1000);
 
+  // Logika jam digital real-time untuk komponen sidebar
+  const [jamSekarang, setJamSekarang] = useState("");
+  useEffect(() => {
+    const updateJam = () => {
+      const now = new Date();
+      const jam = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const hari = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      setJamSekarang({ jam, hari });
+    };
+    updateJam();
+    const interval = setInterval(updateJam, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Manajemen ulasan dan rating tempat parkir menggunakan LocalStorage (Fitur 20)
+  const [ratings, setRatings] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("parkir_ratings") || "{}"); } catch { return {}; }
+  });
+  
+  const handleRating = (parkirId, bintang) => {
+    const existing = ratings[parkirId] || { total: 0, count: 0 };
+    const newRatings = {
+      ...ratings,
+      [parkirId]: { total: existing.total + bintang, count: existing.count + 1 }
+    };
+    setRatings(newRatings);
+    localStorage.setItem("parkir_ratings", JSON.stringify(newRatings));
+  };
+
+  const getRating = (parkirId) => {
+    const r = ratings[parkirId];
+    if (!r || r.count === 0) return null;
+    return { avg: (r.total / r.count).toFixed(1), count: r.count };
+  };
+
+  // Mengambil data titik koordinat parkir dari API backend saat inisialisasi awal
   useEffect(() => {
     axios.get(`${API}/parkir`)
       .then((res) => { setParkirData(res.data); setFiltered(res.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
+  // Handler sinkronisasi filter pencarian teks serta kategori jenis kendaraan
   useEffect(() => {
-    // Jalankan filter client-side hanya jika tidak sedang dalam mode Radius atau Terdekat (API-bound)
     if (radiusMode || terdekatMode) return;
 
     let result = parkirData;
@@ -95,13 +139,15 @@ const MapPage = () => {
     setFiltered(result);
   }, [search, filter, parkirData, radiusMode, terdekatMode]);
 
+  // Aksi ketika pengguna memilih salah satu item dari daftar sidebar
   const handleSelect = (item) => {
     setSelected(item);
     setFlyTarget({ ...item, _t: Date.now() });
   };
 
+  // Mengambil data parkir terdekat memanfaatkan geolocation browser (HTML5 Geolocation)
   const handleCariTerdekat = () => {
-    setRadiusMode(false); // Reset mode radius jika cari terdekat aktif
+    setRadiusMode(false); 
     if (!navigator.geolocation) {
       const lat = -3.7988, lng = 102.2614;
       axios.get(`${API}/parkir/terdekat?lat=${lat}&lng=${lng}&limit=5`)
@@ -123,7 +169,7 @@ const MapPage = () => {
 
   const handleResetTerdekat = () => { setFiltered(parkirData); setTerdekatMode(false); };
 
-  // FITUR 7: Fungsi handleCariDalamRadius
+  // Query data ke backend berdasarkan batas radius meter tertentu (Fitur 7)
   const handleCariDalamRadius = () => {
     const lat = -3.7988;
     const lng = 102.2614;
@@ -131,10 +177,11 @@ const MapPage = () => {
       .then(res => {
         setFiltered(res.data);
         setRadiusMode(true);
-        setTerdekatMode(false); // Otomatis matikan mode terdekat agar tidak bentrok
+        setTerdekatMode(false); 
       });
   };
 
+  // Menentukan warna penanda marker berdasarkan status jam operasional saat ini
   const getMarkerColor = (item) => {
     const now = new Date();
     const jam = now.getHours() * 60 + now.getMinutes();
@@ -161,12 +208,11 @@ const MapPage = () => {
 
   return (
     <>
-      {/* Inject CSS untuk sembunyikan scrollbar + scroll indicator */}
       <style>{hideScrollbarStyle}</style>
 
-      <div style={{ display: "flex", height: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", overflow: "hidden", position: "relative" }}>
+      <div style={{ display: "flex", height: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", overflow: "hidden", position: "relative", backgroundColor: isDark ? "#0f172a" : "#f1f5f9" }}>
 
-        {/* ===== SIDEBAR ===== */}
+        {/* ==================== SIDEBAR UTAMA ==================== */}
         <div
           className="sidebar-scroll"
           style={{
@@ -175,7 +221,9 @@ const MapPage = () => {
             left: 0,
             width: "min(380px, 92vw)",
             height: "100vh",
-            backgroundColor: "#0f172a",
+            backgroundColor: isDark ? "#0f172a" : "white",
+            display: "flex",
+            flexDirection: "column",
             zIndex: 1000,
             overflowY: "auto",
             overflowX: "hidden",
@@ -185,13 +233,12 @@ const MapPage = () => {
             boxShadow: sidebarOpen ? "8px 0 40px rgba(0,0,0,0.5)" : "none",
           }}
         >
-          {/* ── Header ── */}
+          {/* Section Informasi Judul & Panel Kembali */}
           <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
               <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#64748b", textDecoration: "none", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 <ArrowLeft size={13} /> Kembali
               </Link>
-              {/* Tombol TUTUP ‹ */}
               <button
                 onClick={() => setSidebarOpen(false)}
                 title="Tutup sidebar"
@@ -213,9 +260,21 @@ const MapPage = () => {
             <p style={{ color: "#475569", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.2em", marginTop: 4 }}>
               Kecamatan Ratu Agung Digital Map
             </p>
+            
+            {/* Widget penunjuk waktu digital real-time */}
+            {jamSekarang && (
+              <div style={{ marginTop: 10, backgroundColor: "#1e293b", borderRadius: 10, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ color: "white", fontSize: 20, fontWeight: 900, letterSpacing: "0.05em", fontVariantNumeric: "tabular-nums" }}>
+                  {jamSekarang.jam}
+                </div>
+                <div style={{ color: "#475569", fontSize: 10, fontWeight: 600, marginTop: 2 }}>
+                  {jamSekarang.hari}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ── Search ── */}
+          {/* Kolom Pencarian Input */}
           <div style={{ padding: "14px 16px 0" }}>
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 13, top: 12, color: "#475569" }} />
@@ -228,7 +287,7 @@ const MapPage = () => {
             </div>
           </div>
 
-          {/* ── Filter Buttons ── */}
+          {/* Group Kontrol Filter dan Tombol Fitur Geospasial */}
           <div style={{ display: "flex", gap: 7, padding: "10px 16px", flexWrap: "wrap" }}>
             {["Semua", "Mobil", "Motor"].map((f) => (
               <button key={f} onClick={() => { setFilter(f); setTerdekatMode(false); setRadiusMode(false); }}
@@ -241,14 +300,13 @@ const MapPage = () => {
               <Navigation size={11} /> {terdekatMode ? "Reset" : "Terdekat"}
             </button>
 
-            {/* FITUR 7: Tombol Radius */}
             <button onClick={radiusMode ? () => { setRadiusMode(false); setFiltered(parkirData); } : handleCariDalamRadius}  
               style={{ padding: "6px 14px", borderRadius: 20, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer", backgroundColor: radiusMode ? "#8b5cf6" : "#1e293b", color: radiusMode ? "white" : "#64748b", display: "flex", alignItems: "center", gap: 4 }}>  
               🎯 {radiusMode ? "Reset" : "Radius"}
             </button>
           </div>
 
-          {/* ── Statistik ── */}
+          {/* Ringkasan Data Statistik Kapasitas Lahan Parkir */}
           <div style={{ margin: "10px 16px", backgroundColor: "#1e293b", borderRadius: 12, padding: "12px 14px", border: "1px solid rgba(255,255,255,0.06)" }}>
             <p style={{ color: "#475569", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", margin: "0 0 10px" }}>STATISTIK WILAYAH</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -266,7 +324,7 @@ const MapPage = () => {
             </div>
           </div>
 
-          {/* FITUR 7: Slider kontrol radius yang tampil ketika mode radius aktif */}
+          {/* Kontrol Rentang Jarak Slider Radius */}
           {radiusMode && (
             <div style={{ margin: "4px 16px 8px", backgroundColor: "#1e293b", borderRadius: 12, padding: "12px 14px", border: "1px solid #8b5cf6" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -290,7 +348,7 @@ const MapPage = () => {
             </div>
           )}
 
-          {/* ── Counter ── */}
+          {/* Indikator Total Data Hasil Filter */}
           <div style={{ padding: "0 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#3b82f6", boxShadow: "0 0 7px #3b82f6" }} />
@@ -301,7 +359,7 @@ const MapPage = () => {
             <Filter size={13} color="#475569" />
           </div>
 
-          {/* ── List ── */}
+          {/* List Item Hasil Pencarian Tempat Parkir */}
           <div style={{ padding: "0 10px 32px" }}>
             {filtered.map((item) => (
               <div key={item.id} onClick={() => handleSelect(item)}
@@ -332,16 +390,23 @@ const MapPage = () => {
                       📍 {(item.jarak_meter / 1000).toFixed(2)} km dari lokasi kamu
                     </div>
                   )}
+                  
+                  {/* Tampilan akumulasi rating ulasan */}
+                  {getRating(item.id) && (
+                    <div style={{ marginTop: 4, color: "#f59e0b", fontSize: 10, fontWeight: 700 }}>
+                      ⭐ {getRating(item.id).avg} ({getRating(item.id).count} ulasan)
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ===== AREA PETA ===== */}
+        {/* ==================== WORKSPACE PETA KANVAS ==================== */}
         <div style={{ flex: 1, position: "relative", width: "100%" }}>
 
-          {/* Tombol BUKA ☰ */}
+          {/* Tombol pemicu buka kembali panel sidebar */}
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -363,8 +428,18 @@ const MapPage = () => {
             </button>
           )}
 
+          {/* Tombol pengubah tema warna antarmuka (Dark/Light mode) */}
+          <button
+            onClick={() => setIsDark(!isDark)}
+            style={{ position: "fixed", top: 16, right: 16, zIndex: 1001, backgroundColor: isDark ? "#1e293b" : "white", border: isDark ? "1px solid rgba(255,255,255,0.15)" : "1px solid #e2e8f0", borderRadius: 12, padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.2)", fontSize: 16 }}>
+            {isDark ? "☀️" : "🌙"}
+          </button>
+
+          {/* Kontainer Render Peta Leaflet */}
           <MapContainer center={[-3.7988, 102.2614]} zoom={15} style={{ width: "100%", height: "100%" }} zoomControl={false}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap contributors' />
+            
+            {/* Batas poligon wilayah administrasi studi kasus Kecamatan Ratu Agung */}
             <GeoJSON
               data={{
                 type: "Feature",
@@ -376,7 +451,10 @@ const MapPage = () => {
               }}
               style={{ color: "#3b82f6", weight: 2, fillOpacity: 0.05, fillColor: "#3b82f6" }}
             />
+            
             <FlyAndOpen target={flyTarget} markerRefs={markerRefs} />
+            
+            {/* Mapping data sebaran objek penanda tempat parkir */}
             {filtered.map((item) => (
               <Marker
                 key={item.id}
@@ -394,6 +472,8 @@ const MapPage = () => {
                       </span>
                     </div>
                     <p style={{ margin: "0 0 10px", fontSize: 12, color: "#64748b" }}>{item.alamat}</p>
+                    
+                    {/* Detail Informasi Spesifikasi Lahan */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
                       {[
                         { label: "Jenis", val: item.jenis_lahan || "-" },
@@ -407,6 +487,8 @@ const MapPage = () => {
                         </div>
                       ))}
                     </div>
+                    
+                    {/* Rincian Tarif Retribusi Kendaraan */}
                     {item.tarifs && item.tarifs.length > 0 && (
                       <div style={{ marginTop: 6 }}>
                         <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, marginBottom: 4 }}>TARIF:</div>
@@ -417,18 +499,67 @@ const MapPage = () => {
                         ))}
                       </div>
                     )}
+                    
                     {item.jarak_meter && (
                       <div style={{ marginTop: 8, color: "#22c55e", fontSize: 11, fontWeight: 700 }}>
                         📍 {(item.jarak_meter / 1000).toFixed(2)} km dari lokasi kamu
                       </div>
                     )}
+
+                    {/* Form Interaktif Pengisian Rating Bintang */}
+                    <div style={{ marginTop: 10, borderTop: "1px solid #f1f5f9", paddingTop: 10 }}>
+                      <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>BERI RATING:</div>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        {[1,2,3,4,5].map(bintang => (
+                          <button key={bintang} onClick={() => handleRating(item.id, bintang)}
+                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, padding: 2, transition: "transform 0.1s" }}
+                            onMouseEnter={e => e.target.style.transform = "scale(1.3)"}
+                            onMouseLeave={e => e.target.style.transform = "scale(1)"}
+                          >
+                            {getRating(item.id) && Math.round(getRating(item.id).avg) >= bintang ? "⭐" : "☆"}
+                          </button>
+                        ))}
+                        {getRating(item.id) && (
+                          <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, marginLeft: 4 }}>
+                            {getRating(item.id).avg} ({getRating(item.id).count} ulasan)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Integrasi Navigasi Eksternal Rute Google Maps dan Berbagi Tautan */}
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, backgroundColor: "#2563eb", color: "white", padding: "8px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                      >
+                        🗺️ Buka Maps
+                      </a>
+                      <button
+                        onClick={() => {
+                          const link = `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
+                          navigator.clipboard.writeText(link);
+                          const el = document.getElementById(`copied-${item.id}`);
+                          if (el) { el.style.display = "block"; setTimeout(() => { el.style.display = "none"; }, 2000); }
+                        }}
+                        style={{ flex: 1, backgroundColor: "#1e293b", color: "#94a3b8", padding: "8px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "1px solid #334155", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                      >
+                        🔗 Salin Link
+                      </button>
+                    </div>
+                    <div id={`copied-${item.id}`} style={{ display: "none", marginTop: 6, backgroundColor: "#22c55e20", color: "#22c55e", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, textAlign: "center" }}>
+                      ✅ Link berhasil disalin!
+                    </div>
+
                   </div>
                 </Popup>
               </Marker>
             ))}
           </MapContainer>
 
-          {/* Legend */}
+          {/* Legenda Indikator Peta */}
           <div style={{ position: "absolute", bottom: 20, right: 20, zIndex: 999, backgroundColor: "rgba(15,23,42,0.92)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "14px 18px", border: "1px solid rgba(255,255,255,0.07)" }}>
             <p style={{ color: "#475569", fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.2em", margin: "0 0 10px" }}>KETERANGAN</p>
             {[
