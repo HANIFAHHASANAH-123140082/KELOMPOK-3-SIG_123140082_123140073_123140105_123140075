@@ -31,6 +31,18 @@ const EMPTY = {
   latitude: "", longitude: "",
 };
 
+const Overlay = ({ children }) => (
+  <div style={{ 
+    position: "fixed", inset: 0, zIndex: 1100, 
+    backgroundColor: "rgba(0,0,0,0.6)", 
+    backdropFilter: "blur(6px)", 
+    display: "flex", alignItems: "center", 
+    justifyContent: "center", padding: 20 
+  }}>
+    {children}
+  </div>
+);
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
@@ -43,7 +55,7 @@ const AdminDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // FITUR 5: State untuk Search Bar
+  // State untuk Search Bar
   const [searchAdmin, setSearchAdmin] = useState("");
 
   // Fungsi Export CSV
@@ -161,11 +173,6 @@ const AdminDashboard = () => {
     return jam >= bH * 60 + bM && jam <= tH * 60 + tM ? "Buka" : "Tutup";
   };
 
-  const Overlay = ({ children }) => (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      {children}
-    </div>
-  );
 
   const sidebarItem = {
     display: "flex", alignItems: "center", gap: 12, padding: "11px 14px",
