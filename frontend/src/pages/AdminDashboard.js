@@ -19,7 +19,7 @@ const API = "http://localhost:8000/api";
 
 // ─── Komponen Sidebar ────────────────────────────────────────────────────────
 // Diletakkan di luar agar tidak di-recreate setiap render
-const Sidebar = ({ open, onClose, activePage, onNavigate, onLogout }) => {
+const Sidebar = ({ open, onClose, activePage, onNavigate, onLogout, adminName, jamSekarang, totalTutup }) => {
   const menuItems = [
     { id: "dashboard",  icon: LayoutDashboard, label: "Dashboard"      },
     { id: "parkir",     icon: ParkingSquare,   label: "Kelola Parkir"  },
@@ -54,11 +54,11 @@ const Sidebar = ({ open, onClose, activePage, onNavigate, onLogout }) => {
               <MapPin size={15} color="white" />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: "white" }}>ADMIN PORTAL</div>
-              <div style={{ fontSize: 9, color: "#475569", fontWeight: 700, textTransform: "uppercase" }}>
-                RatuAgungGIS v2.0
+                <div style={{ fontSize: 13, fontWeight: 900, color: "white" }}>ADMIN PORTAL</div>
+                <div style={{ fontSize: 9, color: "#475569", fontWeight: 700, textTransform: "uppercase" }}>
+                  RatuAgungGIS v2.0
+                </div>
               </div>
-            </div>
           </div>
           <button
             onClick={onClose}
@@ -71,6 +71,20 @@ const Sidebar = ({ open, onClose, activePage, onNavigate, onLogout }) => {
           >
             <ChevronLeft size={15} />
           </button>
+        </div>
+      </div>
+
+      {/* Info admin + jam */}
+      <div style={{
+        backgroundColor: "#1e293b", borderRadius: 10,
+        padding: "10px 12px", marginBottom: 8,
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>👤 {adminName}</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+          🕐 {jamSekarang.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b" }}>
+          📅 {jamSekarang.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" })}
         </div>
       </div>
 
@@ -91,6 +105,19 @@ const Sidebar = ({ open, onClose, activePage, onNavigate, onLogout }) => {
         >
           <Icon size={16} />
           {label}
+          {/* Badge tutup hanya muncul di menu Dashboard */}
+          {id === "dashboard" && totalTutup > 0 && (
+            <span style={{
+              marginLeft: "auto",
+              backgroundColor: "#ef4444",
+              color: "white",
+              fontSize: 10, fontWeight: 800,
+              padding: "2px 7px", borderRadius: 99,
+              minWidth: 18, textAlign: "center",
+            }}>
+              {totalTutup}
+            </span>
+          )}
         </button>
       ))}
 
@@ -223,6 +250,8 @@ const AdminDashboard = () => {
 
   // Activity log — disimpan di state agar persisten selama sesi
   const [activityLog, setActivityLog] = useState([]);
+  const adminName = localStorage.getItem("adminName") || "Admin";
+  const [jamSekarang, setJamSekarang] = useState(new Date()); 
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -249,6 +278,11 @@ const AdminDashboard = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setJamSekarang(new Date()), 1000);
+    return () => clearInterval(timer);  // cleanup saat unmount
+  }, []);
+
   // Sinkronisasi halaman aktif jika dinavigasi dari halaman lain
   useEffect(() => {
     const state = location.state;
@@ -273,6 +307,7 @@ const AdminDashboard = () => {
   // ─── Handler logout ───────────────────────────────────────────────────────
   const handleLogout = () => {
     localStorage.removeItem("isAdminAuth");
+    localStorage.removeItem("adminName");  // ← baris baru
     navigate("/");
   };
 
@@ -305,6 +340,9 @@ const AdminDashboard = () => {
           activePage={activePage}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
+          adminName={adminName}        
+          jamSekarang={jamSekarang}    
+          totalTutup={data.filter(d => getStatus(d) === "Tutup").length} 
         />
 
         {/* Konten utama */}
@@ -606,17 +644,23 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
   const closeModal = () => { setModal(null); setEditId(null); setDeleteId(null); };
 
   const handleSave = async () => {
-    if (!form.nama.trim() || !form.latitude || !form.longitude) {
-      alert("Nama, Latitude, dan Longitude wajib diisi!");
-      return;
-    }
+  const lat = Number(form.latitude);
+  const lng = Number(form.longitude);
+  if (!form.nama.trim() || !form.latitude || !form.longitude) {
+    alert("Nama, Latitude, dan Longitude wajib diisi!");
+    return;
+  }
+  if (lat < -4.2 || lat > -3.5 || lng < 101.9 || lng > 102.6) {
+    alert("Koordinat di luar wilayah Bengkulu!\nLatitude: -4.2 s/d -3.5\nLongitude: 101.9 s/d 102.6");
+    return;
+  }
     setSaving(true);
     const payload = {
       nama: form.nama, alamat: form.alamat, jenis_lahan: form.jenis_lahan,
       kapasitas_mobil: Number(form.kapasitas_mobil) || 0,
       kapasitas_motor: Number(form.kapasitas_motor) || 0,
       jam_buka: form.jam_buka || null, jam_tutup: form.jam_tutup || null,
-      latitude: Number(form.latitude), longitude: Number(form.longitude),
+      latitude: lat, longitude: lng,
     };
     try {
       if (modal === "add") {
@@ -660,7 +704,8 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
       getStatus(item),
     ]);
     const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const BOM = "\uFEFF"; 
+    const url = URL.createObjectURL(new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" }));
     const a   = document.createElement("a");
     a.href = url; a.download = "data_parkir_ratu_agung.csv"; a.click();
     URL.revokeObjectURL(url);
@@ -677,6 +722,7 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
 
   // Reset ke halaman 1 jika filter berubah
   useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { setPage(1); }, [data]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -1205,6 +1251,7 @@ const PageStatistik = ({ data }) => {
 const PagePeta = ({ data, onEdit }) => {
   const [selected, setSelected] = useState(null);
   const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
 
   useEffect(() => {
     if (!document.getElementById("leaflet-css")) {
@@ -1227,7 +1274,10 @@ const PagePeta = ({ data, onEdit }) => {
 
       const map = L.map("admin-map").setView([-3.8013, 102.2613], 14);
       mapInstanceRef.current = map;  // simpan instance
-
+      // Hapus semua marker lama dulu
+      markersRef.current.forEach(m => m.remove());
+      markersRef.current = [];
+      
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
@@ -1235,6 +1285,7 @@ const PagePeta = ({ data, onEdit }) => {
       data.forEach(item => {
         if (!item.latitude || !item.longitude) return;
         const marker = L.marker([item.latitude, item.longitude]).addTo(map);
+        markersRef.current.push(marker);
         marker.bindPopup(`
           <div style="font-family:sans-serif;min-width:180px">
             <strong style="font-size:14px;color:#0f172a">${item.nama}</strong><br/>
