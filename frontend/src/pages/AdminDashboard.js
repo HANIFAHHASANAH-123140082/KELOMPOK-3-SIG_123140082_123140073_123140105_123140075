@@ -124,17 +124,24 @@ const AdminDashboard = () => {
       }
       fetchData();
       closeModal();
+      showToast(modal === "add" ? "✅ Lokasi parkir berhasil ditambahkan!" : "✅ Data parkir berhasil diperbarui!");
     } catch (err) {
       alert("Gagal menyimpan data: " + (err.response?.data?.detail || err.message));
     }
     setSaving(false);
   };
+  const [toast, setToast] = useState(null);
 
+  const showToast = (pesan, tipe = "success") => {
+    setToast({ pesan, tipe });
+    setTimeout(() => setToast(null), 3000);
+  };
   const handleDelete = async () => {
     try {
       await axios.delete(`${API}/parkir/${deleteId}`);
       fetchData();
       closeModal();
+      showToast("🗑️ Lokasi parkir berhasil dihapus!", "error");
     } catch {
       alert("Gagal menghapus data");
     }
@@ -776,6 +783,22 @@ const AdminDashboard = () => {
             </div>
           </div>
         </Overlay>
+      )}
+      {toast && (
+        <div style={{
+          position: "fixed", top: 20, right: 20, zIndex: 9999,
+          backgroundColor: toast.tipe === "error" ? "#fef2f2" : "#f0fdf4",
+          border: `1px solid ${toast.tipe === "error" ? "#fecaca" : "#bbf7d0"}`,
+          color: toast.tipe === "error" ? "#ef4444" : "#16a34a",
+          padding: "14px 20px", borderRadius: 14,
+          boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+          fontSize: 13, fontWeight: 700,
+          animation: "slideIn 0.3s ease",
+          maxWidth: 320
+        }}>
+          <style>{`@keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+          {toast.pesan}
+        </div>
       )}
     </>
   );
