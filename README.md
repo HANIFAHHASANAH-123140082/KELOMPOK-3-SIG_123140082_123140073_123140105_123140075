@@ -35,7 +35,6 @@ Aplikasi WebGIS ini menyediakan peta interaktif titik-titik parkir publik di Kec
 ### Halaman Publik
 - **Landing Page** — Tampilan awal dengan informasi aplikasi
 - **Peta Interaktif** — Visualisasi titik parkir menggunakan Leaflet.js dengan marker dan popup detail
-- **Login Pengguna** — Autentikasi untuk akses fitur tambahan
 
 ### Portal Admin
 - **Dashboard** — Ringkasan statistik: total lokasi, persentase buka, kapasitas mobil & motor, activity log
