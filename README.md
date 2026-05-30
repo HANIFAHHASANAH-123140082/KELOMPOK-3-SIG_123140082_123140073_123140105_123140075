@@ -26,33 +26,63 @@ Institut Teknologi Sumatera — Semester Genap 2025/2026
 
 ## Deskripsi Proyek
 
-Aplikasi WebGIS full-stack untuk menampilkan, mengelola, dan menganalisis lokasi parkir publik di Kecamatan Ratu Agung, Kota Bengkulu. Sistem ini membantu pengemudi menemukan lokasi parkir terdekat secara cepat melalui peta interaktif berbasis web.
+Aplikasi WebGIS ini menyediakan peta interaktif titik-titik parkir publik di Kecamatan Ratu Agung, Bengkulu. Pengguna umum dapat melihat lokasi parkir, kapasitas, dan status operasional secara real-time. Admin dapat mengelola data parkir melalui portal admin yang dilengkapi fitur CRUD, statistik, dan visualisasi peta.
 
 ---
 
 ## Fitur Utama
 
-- **Peta Interaktif** — Menampilkan 20+ lokasi parkir di atas basemap OpenStreetMap
-- **Marker Dinamis** — Warna marker otomatis berubah sesuai status buka/tutup berdasarkan jam operasional
-- **Pencarian** — Cari lokasi parkir berdasarkan nama atau alamat
-- **Filter Kendaraan** — Filter berdasarkan jenis kendaraan (Mobil / Motor)
-- **Parkir Terdekat** — Mencari parkir terdekat dari posisi pengguna menggunakan `ST_Distance`
-- **Filter Radius** — Menampilkan parkir dalam radius tertentu menggunakan `ST_DWithin`
-- **Popup Detail** — Klik marker untuk melihat detail: nama, alamat, kapasitas, jam operasional, tarif
-- **Admin Dashboard** — Kelola data parkir (tambah, edit, hapus) dengan autentikasi
+### Halaman Publik
+- **Landing Page** — Tampilan awal dengan informasi aplikasi
+- **Peta Interaktif** — Visualisasi titik parkir menggunakan Leaflet.js dengan marker dan popup detail
+- **Login Pengguna** — Autentikasi untuk akses fitur tambahan
+
+### Portal Admin
+- **Dashboard** — Ringkasan statistik: total lokasi, persentase buka, kapasitas mobil & motor, activity log
+- **Kelola Parkir (CRUD)** — Tambah, edit, hapus data lokasi parkir dengan:
+  - Form validasi koordinat khusus wilayah Bengkulu
+  - Mini-map interaktif di form (klik peta untuk isi koordinat otomatis)
+  - Pencarian & filter lokasi
+  - Pagination data
+  - Export data ke CSV (dengan encoding UTF-8 BOM untuk Excel)
+- **Statistik** — Visualisasi data dengan:
+  - Donut chart distribusi jenis lahan
+  - Grouped bar chart perbandingan kapasitas mobil vs motor (Top 5)
+  - Tabel detail kapasitas dengan progress bar proporsi
+- **Peta Admin** — Peta lengkap semua titik parkir dengan panel daftar lokasi
+- **Sidebar Dinamis** — Badge notifikasi lokasi tutup, nama admin, jam & tanggal real-time
 
 ---
 
 ## Tech Stack
 
-| Komponen | Teknologi | Fungsi |
-|---|---|---|
-| Database | PostgreSQL + PostGIS | Penyimpanan data spasial |
-| Backend | FastAPI (Python) | REST API & query spasial |
-| Frontend | ReactJS + Leaflet.js | Antarmuka peta interaktif |
-| Styling | TailwindCSS | Tampilan UI |
-| Auth | JWT (localStorage) | Keamanan admin |
-| Deployment | Railway + Vercel | Hosting backend & frontend |
+### Frontend
+| Teknologi | Versi | Fungsi |
+|-----------|-------|--------|
+| React.js | 19.x | Framework UI |
+| React Router DOM | 7.x | Routing halaman |
+| Leaflet.js | 1.9.4 | Peta interaktif |
+| Recharts | 3.x | Grafik & chart |
+| Axios | 1.x | HTTP client ke API |
+| Lucide React | 1.x | Ikon UI |
+| Framer Motion | 12.x | Animasi |
+| Tailwind CSS | 3.x | Utility CSS |
+
+### Backend
+| Teknologi | Fungsi |
+|-----------|--------|
+| FastAPI (Python) | REST API framework |
+| SQLAlchemy | ORM database |
+| GeoAlchemy2 | Ekstensi spasial SQLAlchemy |
+| Pydantic | Validasi data |
+| Uvicorn | ASGI server |
+| python-dotenv | Manajemen environment variable |
+
+### Database
+| Teknologi | Fungsi |
+|-----------|--------|
+| PostgreSQL | Database utama |
+| PostGIS | Ekstensi data spasial |
 
 ---
 
@@ -90,96 +120,152 @@ Dokumentasi lengkap: `http://localhost:8000/docs` (Swagger UI)
 ## Cara Menjalankan
 
 ### Prasyarat
-- PostgreSQL 15+ dengan ekstensi PostGIS
-- Python 3.11+
-- Node.js 18+
+- Node.js >= 16
+- Python >= 3.9
+- PostgreSQL >= 13 + ekstensi PostGIS
+- Git
+
+---
 
 ### 1. Clone Repository
+
 ```bash
-git clone https://github.com/HANIFAHHASANAH-123140082/KELOMPOK-3-SIG_123140082_123140073_123140105_123140075.git
+git clone https://github.com/<username>/KELOMPOK-3-SIG_123140082_123140073_123140105_123140075.git
 cd KELOMPOK-3-SIG_123140082_123140073_123140105_123140075
 ```
 
-### 2. Setup Database
-```bash
-# Buat database di PostgreSQL
-psql -U postgres -c "CREATE DATABASE webgis_parkir;"
-psql -U postgres -d webgis_parkir -c "CREATE EXTENSION postgis;"
+---
 
-# Jalankan schema dan data
-psql -U postgres -d webgis_parkir -f database/schema.sql
-psql -U postgres -d webgis_parkir -f database/seed.sql
-```
+### 2. Setup Backend
 
-### 3. Jalankan Backend
 ```bash
 cd backend
-
-# Buat file .env
-cp .env.example .env
-# Edit .env: ganti username, password, dan port sesuai PostgreSQL kamu
-# Contoh: DATABASE_URL=postgresql://postgres:password@localhost:5433/webgis_parkir
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Jalankan server
-python -m uvicorn app.main:app --reload
 ```
-Backend berjalan di: http://localhost:8000  
-Swagger UI: http://localhost:8000/docs
 
-### 4. Jalankan Frontend
+Buat virtual environment dan install dependensi:
+
 ```bash
-# Buka terminal baru (jangan tutup terminal backend)
-cd frontend
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux/Mac
 
+pip install -r requirements.txt
+```
+
+Buat file `.env` di folder `backend/`:
+
+```env
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5433/webgis_parkir
+```
+
+Pastikan database PostgreSQL + PostGIS sudah berjalan, lalu buat database:
+
+```sql
+CREATE DATABASE webgis_parkir;
+\c webgis_parkir
+CREATE EXTENSION postgis;
+```
+
+Jalankan backend:
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+Backend berjalan di: `http://localhost:8000`  
+Dokumentasi API: `http://localhost:8000/docs`
+
+---
+
+### 3. Setup Frontend
+
+```bash
+cd frontend
 npm install
 npm start
 ```
-Aplikasi berjalan di: http://localhost:3000
+
+Frontend berjalan di: `http://localhost:3000`
+
+---
 
 ## Struktur Folder
 
 ```
 KELOMPOK-3-SIG/
-│
-├── database/
-│   ├── schema.sql              # DDL: CREATE TABLE + spatial index GiST
-│   └── seed.sql                # Data sample 20 lokasi parkir
-│
-├── backend/
-│   ├── app/
-│   │   ├── main.py             # Entry point FastAPI + CORS middleware
-│   │   ├── database.py         # Koneksi PostgreSQL + SessionLocal
-│   │   ├── models.py           # SQLAlchemy ORM models
-│   │   ├── schemas.py          # Pydantic schemas (validasi input/output)
-│   │   ├── crud.py             # Query database + 2 query spasial
-│   │   └── api/
-│   │       └── endpoints.py    # Semua route REST API (10 endpoint)
-│   ├── .env.example            # Template konfigurasi environment
-│   └── requirements.txt        # Dependencies Python
-│
-├── frontend/
+├── frontend/                     # Aplikasi React
+│   ├── public/
+│   │   ├── index.html
+│   │   └── favicon.ico
 │   └── src/
+│       ├── components/
+│       │   ├── LoadingScreen.js  # Komponen loading
+│       │   └── MapPortal.js      # Portal peta
+│       ├── data/
+│       │   └── parkingData.js    # Data statis parkir
 │       ├── pages/
-│       │   ├── LandingPage.js  # Halaman utama / hero page
-│       │   ├── MapPage.js      # Peta interaktif (terhubung ke API)
-│       │   ├── AdminLogin.js   # Halaman login admin
-│       │   └── AdminDashboard.js # CRUD data parkir
-│       └── components/
-│           └── LoadingScreen.js
+│       │   ├── LandingPage.js    # Halaman awal
+│       │   ├── HomePage.js       # Halaman beranda
+│       │   ├── MapPage.js        # Peta publik
+│       │   ├── LoginPage.js      # Login pengguna
+│       │   ├── AdminLogin.js     # Login admin
+│       │   ├── AdminDashboard.js # Portal admin (CRUD, statistik, peta)
+│       │   └── NotFoundPage.js   # Halaman 404
+│       ├── App.js                # Root component & routing
+│       └── index.js              # Entry point
 │
-├── PROPOSAL KELOMPOK 3_...pdf
-└── README.md
+└── backend/                      # Aplikasi FastAPI
+    ├── app/
+    │   ├── api/
+    │   │   └── endpoints.py      # Route API
+    │   ├── models.py             # Model database
+    │   ├── database.py           # Koneksi database
+    │   └── schemas.py            # Schema Pydantic
+    ├── main.py                   # Entry point FastAPI
+    ├── requirements.txt          # Dependensi Python
+    └── .env                      # Konfigurasi environment
 ```
 
 ## Akses Admin
 
-Untuk mengakses Admin Dashboard:
-1. Buka `http://localhost:3000/login`
-2. Gunakan kredensial yang sudah dikonfigurasi
-3. Setelah login, akses dashboard di `/admin`
+| URL | Keterangan |
+|-----|------------|
+| `http://localhost:3000` | Halaman publik |
+| `http://localhost:3000/admin` | Halaman login admin |
+
+Kredensial default admin dapat disesuaikan di file konfigurasi backend.
+
+---
+
+## Model Data Parkir
+
+| Field | Tipe | Keterangan |
+|-------|------|------------|
+| `id` | Integer | Primary key |
+| `nama` | String | Nama lokasi parkir |
+| `alamat` | String | Alamat lengkap |
+| `jenis_lahan` | String | `terbuka` / `gedung` / `kanopi` |
+| `kapasitas_mobil` | Integer | Jumlah slot mobil |
+| `kapasitas_motor` | Integer | Jumlah slot motor |
+| `jam_buka` | Time | Jam operasional buka |
+| `jam_tutup` | Time | Jam operasional tutup |
+| `latitude` | Float | Koordinat lintang |
+| `longitude` | Float | Koordinat bujur |
+
+> Koordinat valid untuk wilayah Bengkulu: Latitude `-4.2` s/d `-3.5`, Longitude `101.9` s/d `102.6`
+
+---
+
+## Tampilan Aplikasi
+
+| Halaman | Deskripsi |
+|---------|-----------|
+| Landing Page | Halaman sambutan dengan informasi aplikasi |
+| Peta Publik | Peta interaktif Leaflet dengan marker lokasi parkir |
+| Admin Dashboard | Ringkasan statistik dan activity log |
+| Kelola Parkir | Tabel CRUD dengan mini-map koordinat |
+| Statistik | Donut chart dan grouped bar chart |
+| Peta Admin | Visualisasi spasial seluruh titik parkir |
 
 ---
 
