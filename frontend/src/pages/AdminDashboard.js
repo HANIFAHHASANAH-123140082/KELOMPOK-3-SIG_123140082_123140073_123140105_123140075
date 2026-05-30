@@ -5,11 +5,15 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
 import axios from "axios";
 import {
   LayoutDashboard, ParkingSquare, BarChart2, Map,
   Info, LogOut, Menu, ChevronLeft, MapPin,
-  Car, Bike, Clock, TrendingUp, Activity,
+  Car, Bike, TrendingUp, Activity,
   CheckCircle, XCircle, AlertCircle,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -1079,13 +1083,10 @@ const PageStatistik = ({ data }) => {
   const terbuka = data.filter(d => d.jenis_lahan === "terbuka").length;
   const gedung  = data.filter(d => d.jenis_lahan === "gedung").length;
   const kanopi  = data.filter(d => d.jenis_lahan === "kanopi").length;
-  const total   = data.length || 1;
 
-  // Top 5 parkir berdasarkan total kapasitas
   const top5 = [...filtered]
     .sort((a, b) => (b.kapasitas_mobil + b.kapasitas_motor) - (a.kapasitas_mobil + a.kapasitas_motor))
     .slice(0, 5);
-  const maxKap = top5[0] ? top5[0].kapasitas_mobil + top5[0].kapasitas_motor : 1;
 
   return (
     <div className="page-anim">
@@ -1133,60 +1134,91 @@ const PageStatistik = ({ data }) => {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
         {/* Distribusi jenis lahan */}
         <div style={{ backgroundColor: "white", borderRadius: 16, boxShadow: "0 2px 10px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
-          <h3 style={{ margin: "0 0 18px", fontSize: 14, fontWeight: 900, color: "#0f172a" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 900, color: "#0f172a" }}>
             🥧 Distribusi Jenis Lahan
           </h3>
-          {[
-            { label: "Terbuka", count: terbuka, color: "#3b82f6" },
-            { label: "Gedung",  count: gedung,  color: "#8b5cf6" },
-            { label: "Kanopi",  count: kanopi,  color: "#f59e0b" },
-          ].map(({ label, count, color }) => (
-            <div key={label} style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>{label}</span>
-                <span style={{ fontSize: 12, color: "#64748b" }}>
-                  {count} lokasi ({Math.round((count/total)*100)}%)
-                </span>
-              </div>
-              <div style={{ height: 10, backgroundColor: "#f1f5f9", borderRadius: 99, overflow: "hidden" }}>
-                <div style={{
-                  height: "100%", width: `${(count/total)*100}%`,
-                  backgroundColor: color, borderRadius: 99,
-                  transition: "width 0.6s ease",
-                }} />
-              </div>
-            </div>
-          ))}
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#94a3b8" }}>
+            Proporsi jenis lahan dari total {data.length} lokasi
+          </p>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={[
+                  { name: "Terbuka", value: terbuka },
+                  { name: "Gedung",  value: gedung  },
+                  { name: "Kanopi",  value: kanopi  },
+                ]}
+                cx="50%" cy="50%"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={4}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                labelLine={false}
+              >
+                <Cell fill="#3b82f6" />
+                <Cell fill="#8b5cf6" />
+                <Cell fill="#f59e0b" />
+              </Pie>
+              <Tooltip
+                formatter={(value) => [`${value} lokasi`, "Jumlah"]}
+                contentStyle={{ borderRadius: 10, fontSize: 12 }}
+              />
+              <Legend
+                iconType="circle"
+                iconSize={9}
+                formatter={(value) => (
+                  <span style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>{value}</span>
+                )}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Top 5 kapasitas terbesar */}
         <div style={{ backgroundColor: "white", borderRadius: 16, boxShadow: "0 2px 10px rgba(0,0,0,0.04)", padding: "22px 24px" }}>
-          <h3 style={{ margin: "0 0 18px", fontSize: 14, fontWeight: 900, color: "#0f172a" }}>
-            🏆 Top 5 Kapasitas Terbesar
+          <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 900, color: "#0f172a" }}>
+            🏆 Top 5 Kapasitas — Mobil vs Motor
           </h3>
-          {top5.map((item, i) => {
-            const kap = item.kapasitas_mobil + item.kapasitas_motor;
-            return (
-              <div key={item.id} style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: "#334155", fontWeight: 700 }}>
-                    #{i+1} {item.nama.replace("Parkir ","")}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>{kap} slot</span>
-                </div>
-                <div style={{ height: 8, backgroundColor: "#f1f5f9", borderRadius: 8, overflow: "hidden" }}>
-                  <div style={{
-                    height: "100%", width: `${(kap/maxKap)*100}%`,
-                    backgroundColor: ["#2563eb","#22c55e","#f59e0b","#ef4444","#8b5cf6"][i],
-                    borderRadius: 8, transition: "width 0.6s ease",
-                  }} />
-                </div>
-              </div>
-            );
-          })}
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#94a3b8" }}>
+            Perbandingan kapasitas mobil dan motor per lokasi
+          </p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart
+              data={top5.map(item => ({
+                nama: item.nama.replace("Parkir ", "").substring(0, 12),
+                Mobil: item.kapasitas_mobil,
+                Motor: item.kapasitas_motor,
+              }))}
+              margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="nama"
+                tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                axisLine={false} tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{ borderRadius: 10, fontSize: 12 }}
+                formatter={(value, name) => [`${value} slot`, name]}
+              />
+              <Legend
+                iconType="circle" iconSize={9}
+                formatter={(value) => (
+                  <span style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>{value}</span>
+                )}
+              />
+              <Bar dataKey="Mobil" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="Motor" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-      </div>
 
+       </div>  
       {/* Tabel detail kapasitas */}
       <div style={{ backgroundColor: "white", borderRadius: 16, boxShadow: "0 2px 10px rgba(0,0,0,0.04)", overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9" }}>
