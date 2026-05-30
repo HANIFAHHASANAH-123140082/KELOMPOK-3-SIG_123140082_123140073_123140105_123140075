@@ -622,6 +622,8 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
   const [saving,   setSaving]   = useState(false);
   const [search,   setSearch]   = useState("");
   const [page,     setPage]     = useState(1);
+  const miniMapRef     = useRef(null);
+  const miniMarkerRef  = useRef(null); 
   const PER_PAGE = 8;
 
   // ─── Fungsi CRUD ──────────────────────────────────────────────────────────
@@ -724,9 +726,67 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  // Reset ke halaman 1 jika filter berubah
-  useEffect(() => { setPage(1); }, [search]);
-  useEffect(() => { setPage(1); }, [data]);
+useEffect(() => { setPage(1); }, [search]);
+useEffect(() => { setPage(1); }, [data]);
+
+useEffect(() => {
+  if (modal !== "add" && modal !== "edit") {
+    if (miniMapRef.current) {
+      miniMapRef.current.remove();
+      miniMapRef.current = null;
+      miniMarkerRef.current = null;
+    }
+    return;
+  }
+
+  // Tunggu DOM siap
+  const timer = setTimeout(() => {
+    const L = window.L;
+    if (!L || !document.getElementById("mini-map")) return;
+
+    // Hapus instance lama kalau ada
+    if (miniMapRef.current) {
+      miniMapRef.current.remove();
+      miniMapRef.current = null;
+      miniMarkerRef.current = null;
+    }
+
+    const lat = Number(form.latitude) || -3.8013;
+    const lng = Number(form.longitude) || 102.2613;
+
+    const map = L.map("mini-map").setView([lat, lng], 15);
+    miniMapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
+
+    // Kalau sudah ada koordinat, tampilkan marker
+    if (form.latitude && form.longitude) {
+      miniMarkerRef.current = L.marker([lat, lng]).addTo(map);
+    }
+
+    // Klik peta → otomatis isi koordinat
+    map.on("click", (e) => {
+      const { lat, lng } = e.latlng;
+
+      // Update marker
+      if (miniMarkerRef.current) {
+        miniMarkerRef.current.setLatLng([lat, lng]);
+      } else {
+        miniMarkerRef.current = L.marker([lat, lng]).addTo(map);
+      }
+
+      // Update form — pakai DOM event agar React state ikut update
+      document.getElementById("input-lat").value = lat.toFixed(6);
+      document.getElementById("input-lng").value = lng.toFixed(6);
+      document.getElementById("input-lat").dispatchEvent(new Event("input", { bubbles: true }));
+      document.getElementById("input-lng").dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }, 300);
+
+  return () => clearTimeout(timer);
+}, [modal, form.latitude, form.longitude]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -944,14 +1004,16 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Latitude *</label>
-                  <input type="number" step="any" value={form.latitude}
+                  <input id="input-lat" type="number" step="any" value={form.latitude}
                     onChange={e => setForm({ ...form, latitude: e.target.value })}
+                    onInput={e => setForm(f => ({ ...f, latitude: e.target.value }))}
                     placeholder="-3.80123" style={inputStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>Longitude *</label>
-                  <input type="number" step="any" value={form.longitude}
+                  <input id="input-lng" type="number" step="any" value={form.longitude}
                     onChange={e => setForm({ ...form, longitude: e.target.value })}
+                    onInput={e => setForm(f => ({ ...f, longitude: e.target.value }))}
                     placeholder="102.26123" style={inputStyle} />
                 </div>
               </div>
@@ -986,14 +1048,31 @@ const PageKelolaParkir = ({ data, loading, fetchData, showToast, addLog, getStat
                     onChange={e => setForm({ ...form, jam_buka: e.target.value })}
                     style={inputStyle} />
                 </div>
-                <div>
-                  <label style={labelStyle}>Jam Tutup</label>
-                  <input type="time" value={form.jam_tutup}
-                    onChange={e => setForm({ ...form, jam_tutup: e.target.value })}
-                    style={inputStyle} />
-                </div>
+              <div>
+                <label style={labelStyle}>Jam Tutup</label>
+                <input type="time" value={form.jam_tutup}
+                  onChange={e => setForm({ ...form, jam_tutup: e.target.value })}
+                  style={inputStyle} />
               </div>
             </div>
+
+            {/* Mini-map preview koordinat */}
+            <div>
+              <label style={labelStyle}>📍 Preview Lokasi di Peta</label>
+              <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 8px" }}>
+                Klik pada peta untuk otomatis mengisi koordinat
+              </p>
+              <div
+                id="mini-map"
+                style={{
+                  width: "100%", height: 220, borderRadius: 12,
+                  border: "1px solid #e2e8f0", overflow: "hidden",
+                  zIndex: 1,
+                }}
+              />
+            </div>
+
+          </div> 
 
             {/* Footer modal */}
             <div style={{
