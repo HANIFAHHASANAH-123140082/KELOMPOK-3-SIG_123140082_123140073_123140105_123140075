@@ -56,16 +56,16 @@ Aplikasi WebGIS ini menyediakan peta interaktif titik-titik parkir publik di Kec
 ## Tech Stack
 
 ### Frontend
-| Teknologi | Versi | Fungsi |
-|-----------|-------|--------|
-| React.js | 19.x | Framework UI |
-| React Router DOM | 7.x | Routing halaman |
-| Leaflet.js | 1.9.4 | Peta interaktif |
-| Recharts | 3.x | Grafik & chart |
-| Axios | 1.x | HTTP client ke API |
-| Lucide React | 1.x | Ikon UI |
-| Framer Motion | 12.x | Animasi |
-| Tailwind CSS | 3.x | Utility CSS |
+| Teknologi | Fungsi |
+|-----------|--------|
+| React.js | Framework UI |
+| React Router DOM | Routing halaman |
+| Leaflet.js | Peta interaktif |
+| Recharts | Grafik & chart |
+| Axios | HTTP client ke API |
+| Lucide React | Ikon UI |
+| Framer Motion | Animasi |
+| Tailwind CSS | Utility CSS |
 
 ### Backend
 | Teknologi | Fungsi |
