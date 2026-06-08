@@ -10,6 +10,7 @@ Institut Teknologi Sumatera — Semester Genap 2025/2026
 ## Video Demo WebGIS Parkir Publik Kelompok 3 
 
 [![Demo WebGIS Parkir Publik](https://img.youtube.com/vi/7m854Ia5LFg/maxresdefault.jpg)](https://www.youtube.com/watch?v=7m854Ia5LFg)
+
 ---
 
 ## Anggota Kelompok 3
@@ -276,6 +277,52 @@ Kredensial default admin dapat disesuaikan di file konfigurasi backend.
 | Kelola Parkir | Tabel CRUD dengan mini-map koordinat |
 | Statistik | Donut chart dan grouped bar chart |
 | Peta Admin | Visualisasi spasial seluruh titik parkir |
+
+### Landing Page
+
+Halaman utama aplikasi WebGIS Parkir Publik Kecamatan Ratu Agung.
+
+![Landing Page](frontend/ss1.png)
+
+---
+
+### Peta Interaktif
+
+Menampilkan persebaran lokasi parkir pada peta digital berbasis Leaflet.
+
+![Peta Interaktif](frontend/ss2.png)
+
+---
+
+### Detail Lokasi Parkir
+
+Informasi detail lokasi parkir yang dipilih pengguna.
+
+![Detail Lokasi Parkir](frontend/ss3.png)
+
+---
+
+### Login Admin
+
+Halaman autentikasi administrator sistem.
+
+![Login Admin](frontend/ss4.png)
+
+---
+
+### Dashboard Admin
+
+Dashboard untuk memantau statistik dan mengelola data parkir.
+
+![Dashboard Admin](frontend/ss6.png)
+
+---
+
+### Form Tambah Lokasi Parkir
+
+Form untuk menambahkan data lokasi parkir baru ke dalam sistem.
+
+![Form Tambah Lokasi Parkir](frontend/ss5.png)
 
 ---
 
