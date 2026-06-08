@@ -7,6 +7,9 @@
 Proyek Akhir Mata Kuliah Sistem Informasi Geografis  
 Institut Teknologi Sumatera — Semester Genap 2025/2026
 
+## Video Demo WebGIS Parkir Publik Kelompok 3 
+
+[![Demo WebGIS Parkir Publik](https://img.youtube.com/vi/7m854Ia5LFg/maxresdefault.jpg)](https://www.youtube.com/watch?v=7m854Ia5LFg)
 ---
 
 ## Anggota Kelompok 3
@@ -284,8 +287,3 @@ Kredensial default admin dapat disesuaikan di file konfigurasi backend.
 - [OpenStreetMap](https://www.openstreetmap.org/)
 - BPS Kota Bengkulu. (2024). Kecamatan Ratu Agung Dalam Angka 2024
 - Perda Kota Bengkulu No. 1 Tahun 2024 tentang Pajak dan Retribusi Daerah
-
-
-## 🚀 Demo Aplikasi
-
-* **Video Demonstrasi :** (https://youtu.be/7m854Ia5LFg)
