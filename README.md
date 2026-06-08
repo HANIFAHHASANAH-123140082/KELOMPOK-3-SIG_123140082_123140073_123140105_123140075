@@ -94,6 +94,14 @@ tarif            — skema tarif per jenis kendaraan (relasi ke parkir)
 - Spatial Index: GiST pada kolom `koordinat` dan `batas_wilayah`
 - SRID: EPSG:4326
 - Sample data: 20 record lokasi parkir
+  
+### Fitur Spasial Database
+
+Implementasi PostGIS pada sistem ini memanfaatkan:
+
+- ST_Distance untuk menghitung jarak lokasi parkir terdekat.
+- ST_DWithin untuk pencarian lokasi parkir dalam radius tertentu.
+- Spatial Index GiST untuk meningkatkan performa query spasial.
 
 ---
 
