@@ -284,3 +284,8 @@ Kredensial default admin dapat disesuaikan di file konfigurasi backend.
 - [OpenStreetMap](https://www.openstreetmap.org/)
 - BPS Kota Bengkulu. (2024). Kecamatan Ratu Agung Dalam Angka 2024
 - Perda Kota Bengkulu No. 1 Tahun 2024 tentang Pajak dan Retribusi Daerah
+
+
+## 🚀 Demo Aplikasi
+
+* **Video Demonstrasi :** (https://youtu.be/7m854Ia5LFg)
