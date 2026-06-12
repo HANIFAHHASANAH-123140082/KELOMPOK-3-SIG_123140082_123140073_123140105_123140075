@@ -9,7 +9,7 @@ Institut Teknologi Sumatera — Semester Genap 2025/2026
 
 ## Video Demo WebGIS Parkir Publik Kelompok 3 
 
-[![Demo WebGIS Parkir Publik](https://img.youtube.com/vi/7m854Ia5LFg/maxresdefault.jpg)](https://www.youtube.com/watch?v=7m854Ia5LFg)
+[![Demo WebGIS Parkir Publik](https://img.youtube.com/vi/TB6eA-g8A2g/maxresdefault.jpg)](https://www.youtube.com/watch?v=TB6eA-g8A2g)
 
 ---
 
